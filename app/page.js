@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 const FEATURED_IDS = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter', genre: 'pop · dance pop' },
   { id: '4q3ewBCX7sLwd24euuV69X', name: 'Bad Bunny', genre: 'reggaeton · trap latino' },
-  { id: '36QJpDe2go2KgaRleHCDlu', name: 'Clairo', genre: 'indie pop · bedroom pop' },
+  { id: '3l0CmX0FuQjFxr8SK7Vqag', name: 'Clairo', genre: 'indie pop · bedroom pop' },
   { id: '3TVXtAsR1Inumwj472S9r4', name: 'Drake', genre: 'hip hop · rap' },
   { id: '4lxfqrEsLX6N1N4OCSkILp', name: 'Phil Collins', genre: 'pop rock · soft rock' },
   { id: '6yJCxee7QumYr820xdIsjo', name: 'Zach Top', genre: 'country · neo-traditional' },
@@ -101,7 +101,6 @@ export default function Home() {
                   background: '#111',
                 }}
               >
-                {/* Background image */}
                 {a.image && (
                   <img
                     src={a.image}
@@ -109,15 +108,18 @@ export default function Home() {
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }}
                   />
                 )}
-
-                {/* Dark overlay at bottom */}
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%)' }} />
-
-                {/* Text overlay */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '14px' }}>
                   <div style={{ color: '#fff', fontSize: '13px', fontWeight: '500', lineHeight: '1.2', marginBottom: '4px' }}>{a.name}</div>
-                  <div style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>
-                    {a.price ? `${a.price.toLocaleString()} cr` : '...'}
+                  <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                    {a.price ? (
+                      <>
+                        <span style={{ color: '#fff' }}>{a.price.toLocaleString()}</span>
+                        <span style={{ color: '#4ade80' }}> CR</span>
+                      </>
+                    ) : (
+                      <span style={{ color: '#555' }}>Loading...</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -133,10 +135,10 @@ export default function Home() {
         <p style={{ color: '#555', fontSize: '13px', marginBottom: '28px' }}>Follow a real investment from start to profit.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
           {[
-            { num: '01', title: 'You find her on Stockify', body: 'Sabrina has 45M followers. Her share price is set at', val: '4,500 cr', valColor: '#fff' },
-            { num: '02', title: 'You buy 2 shares', body: 'You spend 9,000 credits from your starting balance.', val: '−9,000 cr', valColor: '#f87171' },
-            { num: '03', title: 'Her listeners grow', body: 'Sabrina goes on tour. Followers jump to 54M. Price rises to', val: '5,400 cr', valColor: '#4ade80' },
-            { num: '04', title: 'You sell your shares', body: 'You sell 2 shares at 5,400 cr each and pocket', val: '+1,800 cr profit', valColor: '#4ade80' },
+            { num: '01', title: 'You find her on Stockify', body: 'Sabrina has 45M followers. Her share price is set at', val: '4,500 CR', valColor: '#fff' },
+            { num: '02', title: 'You buy 2 shares', body: 'You spend 9,000 credits from your starting balance.', val: '−9,000 CR', valColor: '#f87171' },
+            { num: '03', title: 'Her listeners grow', body: 'Sabrina goes on tour. Followers jump to 54M. Price rises to', val: '5,400 CR', valColor: '#4ade80' },
+            { num: '04', title: 'You sell your shares', body: 'You sell 2 shares at 5,400 CR each and pocket', val: '+1,800 CR profit', valColor: '#4ade80' },
           ].map((s) => (
             <div key={s.num} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '10px', padding: '20px' }}>
               <div style={{ color: '#4ade80', fontSize: '10px', fontWeight: '500', marginBottom: '10px', letterSpacing: '0.5px' }}>STEP {s.num}</div>
