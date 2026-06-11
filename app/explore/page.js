@@ -31,9 +31,7 @@ export default function Explore() {
     setLoading(false)
   }
 
-  const getPrice = (artist) => {
-    return Math.max(1, Math.round(artist.followers / 10000))
-  }
+  const getPrice = (artist) => Math.max(1, Math.round(artist.followers / 10000))
 
   const buyShares = async (artist) => {
     const amount = parseInt(buyAmount[artist.id] || 1)
@@ -56,10 +54,7 @@ export default function Explore() {
       .single()
 
     if (existing) {
-      await supabase
-        .from('holdings')
-        .update({ shares: existing.shares + amount })
-        .eq('id', existing.id)
+      await supabase.from('holdings').update({ shares: existing.shares + amount }).eq('id', existing.id)
     } else {
       await supabase.from('holdings').insert({
         user_id: user.id,
@@ -70,13 +65,9 @@ export default function Explore() {
       })
     }
 
-    await supabase
-      .from('profiles')
-      .update({ credits: profile.credits - totalCost })
-      .eq('id', user.id)
-
+    await supabase.from('profiles').update({ credits: profile.credits - totalCost }).eq('id', user.id)
     setProfile({ ...profile, credits: profile.credits - totalCost })
-    setMessage(`Bought ${amount} share(s) of ${artist.name} for ${totalCost} credits!`)
+    setMessage(`Bought ${amount} share(s) of ${artist.name} for ${totalCost.toLocaleString()} CR!`)
     setTimeout(() => setMessage(''), 3000)
   }
 
@@ -87,19 +78,17 @@ export default function Explore() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-green-400">Explore Artists</h1>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-gray-400 hover:text-white transition text-sm"
-          >
+          <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-white transition text-sm">
             ← Back to Dashboard
           </button>
         </div>
 
         {/* Credits */}
         {profile && (
-          <div className="bg-gray-900 rounded-2xl p-4 mb-6 flex items-center gap-2">
-            <span className="text-green-400 font-bold text-xl">{profile.credits}</span>
-            <span className="text-gray-400">credits available</span>
+          <div className="bg-gray-900 rounded-2xl p-4 mb-6 flex items-baseline gap-2">
+            <span className="text-white font-bold text-xl">{profile.credits.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '500' }}>CR</span>
+            <span className="text-gray-400 text-sm ml-1">available</span>
           </div>
         )}
 
@@ -119,10 +108,7 @@ export default function Explore() {
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && searchArtists()}
           />
-          <button
-            onClick={searchArtists}
-            className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition"
-          >
+          <button onClick={searchArtists} className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition">
             Search
           </button>
         </div>
@@ -133,14 +119,12 @@ export default function Explore() {
           {artists.map(artist => (
             <div key={artist.id} className="bg-gray-900 rounded-2xl p-4 flex items-center gap-4">
 
-              {/* Artist Image */}
               {artist.image ? (
                 <img src={artist.image} alt={artist.name} className="w-16 h-16 rounded-full object-cover" />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl">🎵</div>
               )}
 
-              {/* Artist Info */}
               <div className="flex-1">
                 <p
                   className="font-bold text-lg cursor-pointer hover:text-green-400 transition"
@@ -154,10 +138,11 @@ export default function Explore() {
                 )}
               </div>
 
-              {/* Price & Buy */}
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <p className="text-green-400 font-bold">{getPrice(artist)} credits</p>
+                  <p className="text-white font-bold">
+                    {getPrice(artist).toLocaleString()} <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
+                  </p>
                   <p className="text-gray-400 text-xs">per share</p>
                 </div>
                 <input
@@ -167,10 +152,7 @@ export default function Explore() {
                   onChange={e => setBuyAmount({ ...buyAmount, [artist.id]: e.target.value })}
                   className="w-16 bg-gray-800 rounded-lg px-2 py-1 text-white text-center outline-none"
                 />
-                <button
-                  onClick={() => buyShares(artist)}
-                  className="bg-green-400 text-black font-bold px-4 py-2 rounded-xl hover:bg-green-300 transition"
-                >
+                <button onClick={() => buyShares(artist)} className="bg-green-400 text-black font-bold px-4 py-2 rounded-xl hover:bg-green-300 transition">
                   Buy
                 </button>
               </div>

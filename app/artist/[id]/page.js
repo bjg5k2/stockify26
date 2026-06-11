@@ -20,18 +20,11 @@ export default function ArtistPage() {
       if (!user) { router.push('/auth'); return }
 
       const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+        .from('profiles').select('*').eq('id', user.id).single()
       setProfile(profileData)
 
       const { data: holdingData } = await supabase
-        .from('holdings')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('artist_id', id)
-        .single()
+        .from('holdings').select('*').eq('user_id', user.id).eq('artist_id', id).single()
       setHolding(holdingData || null)
 
       const res = await fetch(`/api/artist?id=${id}`)
@@ -53,16 +46,12 @@ export default function ArtistPage() {
     const amount = parseInt(buyAmount)
     const price = getPrice(artist)
     const totalCost = amount * price
-
     if (totalCost > profile.credits) { showMessage('Not enough credits!'); return }
 
     const { data: { user } } = await supabase.auth.getUser()
 
     if (holding) {
-      await supabase
-        .from('holdings')
-        .update({ shares: holding.shares + amount })
-        .eq('id', holding.id)
+      await supabase.from('holdings').update({ shares: holding.shares + amount }).eq('id', holding.id)
       setHolding({ ...holding, shares: holding.shares + amount })
     } else {
       const { data } = await supabase.from('holdings').insert({
@@ -75,13 +64,9 @@ export default function ArtistPage() {
       setHolding(data)
     }
 
-    await supabase
-      .from('profiles')
-      .update({ credits: profile.credits - totalCost })
-      .eq('id', user.id)
-
+    await supabase.from('profiles').update({ credits: profile.credits - totalCost }).eq('id', user.id)
     setProfile({ ...profile, credits: profile.credits - totalCost })
-    showMessage(`Bought ${amount} share(s) for ${totalCost} credits!`)
+    showMessage(`Bought ${amount} share(s) for ${totalCost.toLocaleString()} CR!`)
   }
 
   const sellShares = async () => {
@@ -90,27 +75,19 @@ export default function ArtistPage() {
 
     const price = getPrice(artist)
     const totalReturn = amount * price
-
     const { data: { user } } = await supabase.auth.getUser()
 
     if (holding.shares - amount === 0) {
       await supabase.from('holdings').delete().eq('id', holding.id)
       setHolding(null)
     } else {
-      await supabase
-        .from('holdings')
-        .update({ shares: holding.shares - amount })
-        .eq('id', holding.id)
+      await supabase.from('holdings').update({ shares: holding.shares - amount }).eq('id', holding.id)
       setHolding({ ...holding, shares: holding.shares - amount })
     }
 
-    await supabase
-      .from('profiles')
-      .update({ credits: profile.credits + totalReturn })
-      .eq('id', user.id)
-
+    await supabase.from('profiles').update({ credits: profile.credits + totalReturn }).eq('id', user.id)
     setProfile({ ...profile, credits: profile.credits + totalReturn })
-    showMessage(`Sold ${amount} share(s) for ${totalReturn} credits!`)
+    showMessage(`Sold ${amount} share(s) for ${totalReturn.toLocaleString()} CR!`)
   }
 
   if (loading) return (
@@ -133,13 +110,13 @@ export default function ArtistPage() {
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <button
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white transition text-sm"
-          >
+          <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition text-sm">
             ← Back
           </button>
-          <span className="text-green-400 font-bold">{profile?.credits} credits</span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-white font-bold">{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
+          </div>
         </div>
 
         {/* Artist Info */}
@@ -155,7 +132,11 @@ export default function ArtistPage() {
             {artist.genres.length > 0 && (
               <p className="text-gray-500 text-sm mt-1">{artist.genres.join(', ')}</p>
             )}
-            <p className="text-green-400 font-bold text-xl mt-2">{price} credits per share</p>
+            <div className="flex items-baseline gap-1 mt-2">
+              <span className="text-white font-bold text-xl">{price.toLocaleString()}</span>
+              <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '500' }}>CR</span>
+              <span className="text-gray-400 text-sm ml-1">per share</span>
+            </div>
           </div>
         </div>
 
@@ -170,7 +151,10 @@ export default function ArtistPage() {
               </div>
               <div className="text-right">
                 <p className="text-gray-400 text-sm">Current value</p>
-                <p className="text-2xl font-bold text-green-400">{holding.shares * price} credits</p>
+                <div className="flex items-baseline gap-1 justify-end">
+                  <span className="text-2xl font-bold">{(holding.shares * price).toLocaleString()}</span>
+                  <span style={{ color: '#4ade80', fontSize: '16px', fontWeight: '500' }}>CR</span>
+                </div>
               </div>
             </div>
           </div>
@@ -194,13 +178,11 @@ export default function ArtistPage() {
               onChange={e => setBuyAmount(e.target.value)}
               className="w-24 bg-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-green-400"
             />
-            <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400">
-              Cost: <span className="text-white font-bold">{buyAmount * price} credits</span>
+            <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400 flex items-baseline gap-1">
+              Cost: <span className="text-white font-bold ml-1">{(buyAmount * price).toLocaleString()}</span>
+              <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
             </div>
-            <button
-              onClick={buyShares}
-              className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition"
-            >
+            <button onClick={buyShares} className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition">
               Buy
             </button>
           </div>
@@ -219,13 +201,11 @@ export default function ArtistPage() {
                 onChange={e => setSellAmount(e.target.value)}
                 className="w-24 bg-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-green-400"
               />
-              <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400">
-                Return: <span className="text-white font-bold">{sellAmount * price} credits</span>
+              <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400 flex items-baseline gap-1">
+                Return: <span className="text-white font-bold ml-1">{(sellAmount * price).toLocaleString()}</span>
+                <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
               </div>
-              <button
-                onClick={sellShares}
-                className="bg-red-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-red-400 transition"
-              >
+              <button onClick={sellShares} className="bg-red-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-red-400 transition">
                 Sell
               </button>
             </div>

@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 
+const CR = <span style={{ color: '#4ade80', fontSize: '0.75em', fontWeight: '500', marginLeft: '3px' }}>CR</span>
+
 export default function Dashboard() {
   const [profile, setProfile] = useState(null)
   const [holdings, setHoldings] = useState([])
@@ -50,10 +52,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-green-400">Stockify</h1>
-          <button
-            onClick={handleLogout}
-            className="text-gray-400 hover:text-white transition text-sm"
-          >
+          <button onClick={handleLogout} className="text-gray-400 hover:text-white transition text-sm">
             Log Out
           </button>
         </div>
@@ -62,9 +61,10 @@ export default function Dashboard() {
         <div className="bg-gray-900 rounded-2xl p-6 mb-6">
           <p className="text-gray-400 text-sm">Welcome back,</p>
           <h2 className="text-2xl font-bold">{profile?.username}</h2>
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-green-400 text-3xl font-bold">{profile?.credits}</span>
-            <span className="text-gray-400">credits available</span>
+          <div className="mt-4 flex items-baseline gap-2">
+            <span className="text-white text-3xl font-bold">{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '20px', fontWeight: '500' }}>CR</span>
+            <span className="text-gray-400 text-sm ml-1">available</span>
           </div>
         </div>
 
@@ -82,8 +82,10 @@ export default function Dashboard() {
                     <p className="text-gray-400 text-sm">{h.shares} shares</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-green-400 font-bold">{h.shares * h.buy_price} credits</p>
-                    <p className="text-gray-400 text-sm">@ {h.buy_price} each</p>
+                    <p className="text-white font-bold">
+                      {(h.shares * h.buy_price).toLocaleString()} <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
+                    </p>
+                    <p className="text-gray-400 text-sm">@ {h.buy_price.toLocaleString()} CR each</p>
                   </div>
                 </div>
               ))}
@@ -91,12 +93,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Explore Button */}
-        <button
-          onClick={() => router.push('/explore')}
-          className="w-full bg-green-400 text-black font-bold py-4 rounded-2xl hover:bg-green-300 transition text-lg"
-        >
+        {/* Buttons */}
+        <button onClick={() => router.push('/explore')} className="w-full bg-green-400 text-black font-bold py-4 rounded-2xl hover:bg-green-300 transition text-lg mb-4">
           Explore Artists
+        </button>
+        <button onClick={() => router.push('/portfolio')} className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl hover:bg-gray-800 transition text-lg">
+          View Portfolio
         </button>
 
       </div>
