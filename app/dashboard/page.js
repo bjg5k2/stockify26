@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState('value')
+  const [sortDir, setSortDir] = useState('desc')
   const router = useRouter()
 
   useEffect(() => {
@@ -66,19 +67,34 @@ export default function Dashboard() {
     return (((current - h.buy_price) / h.buy_price) * 100).toFixed(1)
   }
 
+  const handleSort = (newSort) => {
+    if (newSort === sortBy) {
+      setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortBy(newSort)
+      setSortDir('desc')
+    }
+  }
+
   const getSortedHoldings = () => {
     const sorted = [...holdings]
+    const dir = sortDir === 'desc' ? -1 : 1
+
     if (sortBy === 'value') {
       return sorted.sort((a, b) => {
         const aArtist = artistData[a.artist_id]
         const bArtist = artistData[b.artist_id]
         const aVal = aArtist ? a.shares * getPrice(aArtist) : 0
         const bVal = bArtist ? b.shares * getPrice(bArtist) : 0
-        return bVal - aVal
+        return (bVal - aVal) * dir
       })
     }
-    if (sortBy === 'date') return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    if (sortBy === 'az') return sorted.sort((a, b) => a.artist_name.localeCompare(b.artist_name))
+    if (sortBy === 'date') {
+      return sorted.sort((a, b) => (new Date(b.created_at) - new Date(a.created_at)) * dir)
+    }
+    if (sortBy === 'az') {
+      return sorted.sort((a, b) => a.artist_name.localeCompare(b.artist_name) * dir)
+    }
     return sorted
   }
 
@@ -115,12 +131,17 @@ export default function Dashboard() {
 
   const sortedHoldings = getSortedHoldings()
 
+  const getSortLabel = (key, labels) => {
+    if (sortBy !== key) return labels[0]
+    return sortDir === 'desc' ? labels[0] : labels[1]
+  }
+
   const sortBtnStyle = (active) => ({
     background: active ? '#0f2a18' : '#0f0f0f',
     border: `0.5px solid ${active ? '#1a4a2a' : '#1c1c1c'}`,
     color: active ? '#4ade80' : '#555',
-    fontSize: '11px',
-    padding: '5px 12px',
+    fontSize: '13px',
+    padding: '6px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
   })
@@ -129,17 +150,17 @@ export default function Dashboard() {
     <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
 
       {/* Navbar */}
-      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ color: '#4ade80', fontSize: '20px', fontWeight: '500', letterSpacing: '-0.5px' }}>Stockify</div>
-        <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
-          <span style={{ color: '#fff', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>Portfolio</span>
-          <span onClick={() => router.push('/explore')} style={{ color: '#555', fontSize: '14px', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#555', fontSize: '14px', cursor: 'pointer' }}>Leaderboard</span>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px' }}>Stockify</div>
+        <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Portfolio</span>
+          <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>{initials}</div>
-            <span style={{ color: '#aaa', fontSize: '14px' }}>{profile?.username}</span>
+            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{initials}</div>
+            <span style={{ color: '#aaa', fontSize: '16px' }}>{profile?.username}</span>
           </div>
-          <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#555', fontSize: '13px', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
+          <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
       </nav>
 
@@ -147,7 +168,7 @@ export default function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0 }}>
 
         {/* Main */}
-        <div style={{ padding: '32px 40px', borderRight: '0.5px solid #141414', overflow: 'auto' }}>
+        <div style={{ padding: '32px 48px', borderRight: '0.5px solid #141414', overflow: 'auto' }}>
 
           <div style={{ color: '#555', fontSize: '11px', letterSpacing: '1px', marginBottom: '12px' }}>PORTFOLIO OVERVIEW</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
@@ -159,8 +180,8 @@ export default function Dashboard() {
           {/* Chart */}
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <span style={{ color: '#aaa', fontSize: '14px', fontWeight: '500' }}>{profile?.username}'s portfolio</span>
-              <span style={{ color: up ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500' }}>
+              <span style={{ color: '#aaa', fontSize: '15px', fontWeight: '500' }}>{profile?.username}'s portfolio</span>
+              <span style={{ color: up ? '#4ade80' : '#f87171', fontSize: '14px', fontWeight: '500' }}>
                 {up ? '▲' : '▼'} {Math.abs(allTimeChange)}% all time
               </span>
             </div>
@@ -172,7 +193,7 @@ export default function Dashboard() {
                     <stop offset="95%" stopColor={up ? '#4ade80' : '#f87171'} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" tick={{ fill: '#444', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="date" tick={{ fill: '#444', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis hide={true} domain={['auto', 'auto']} />
                 <Tooltip
                   contentStyle={{ background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
@@ -192,7 +213,7 @@ export default function Dashboard() {
               { label: 'Total profit / loss', val: `${totalPL >= 0 ? '+' : ''}${Math.round(totalPL).toLocaleString()}`, color: totalPL >= 0 ? '#4ade80' : '#f87171' },
             ].map((m) => (
               <div key={m.label} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
-                <div style={{ color: '#555', fontSize: '12px', marginBottom: '8px' }}>{m.label}</div>
+                <div style={{ color: '#555', fontSize: '13px', marginBottom: '8px' }}>{m.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                   <span style={{ color: m.color || '#fff', fontSize: '22px', fontWeight: '500' }}>{m.val}</span>
                   <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
@@ -203,11 +224,17 @@ export default function Dashboard() {
 
           {/* Holdings header with sort */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <div style={{ color: '#fff', fontSize: '17px', fontWeight: '500' }}>Your holdings</div>
+            <div style={{ color: '#fff', fontSize: '18px', fontWeight: '500' }}>Your holdings</div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button style={sortBtnStyle(sortBy === 'value')} onClick={() => setSortBy('value')}>Value ↓</button>
-              <button style={sortBtnStyle(sortBy === 'date')} onClick={() => setSortBy('date')}>Date</button>
-              <button style={sortBtnStyle(sortBy === 'az')} onClick={() => setSortBy('az')}>A–Z</button>
+              <button style={sortBtnStyle(sortBy === 'value')} onClick={() => handleSort('value')}>
+                {getSortLabel('value', ['Value ↓', 'Value ↑'])}
+              </button>
+              <button style={sortBtnStyle(sortBy === 'date')} onClick={() => handleSort('date')}>
+                {getSortLabel('date', ['Newest', 'Oldest'])}
+              </button>
+              <button style={sortBtnStyle(sortBy === 'az')} onClick={() => handleSort('az')}>
+                {getSortLabel('az', ['A–Z', 'Z–A'])}
+              </button>
             </div>
           </div>
 
@@ -233,17 +260,17 @@ export default function Dashboard() {
                   style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0', borderBottom: '0.5px solid #141414', cursor: 'pointer' }}
                 >
                   {artist?.image ? (
-                    <img src={artist.image} alt={h.artist_name} style={{ width: '44px', height: '44px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                    <img src={artist.image} alt={h.artist_name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
                   )}
                   <div style={{ flex: 1 }}>
-                    <div style={{ color: '#ddd', fontSize: '15px', fontWeight: '500' }}>{h.artist_name}</div>
+                    <div style={{ color: '#ddd', fontSize: '16px', fontWeight: '500' }}>{h.artist_name}</div>
                     <div style={{ color: '#555', fontSize: '13px', marginTop: '3px' }}>{h.shares.toFixed(2)} shares · avg {Math.round(h.buy_price).toLocaleString()} CR</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', justifyContent: 'flex-end' }}>
-                      <span style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
+                      <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
                       <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
                     </div>
                     {pl !== null && (
@@ -269,8 +296,8 @@ export default function Dashboard() {
               { label: 'Net worth', val: `${Math.round(netWorth).toLocaleString()} CR` },
             ].map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ color: '#555', fontSize: '13px' }}>{r.label}</span>
-                <span style={{ color: r.color || '#fff', fontSize: '13px', fontWeight: '500' }}>{r.val}</span>
+                <span style={{ color: '#555', fontSize: '14px' }}>{r.label}</span>
+                <span style={{ color: r.color || '#fff', fontSize: '14px', fontWeight: '500' }}>{r.val}</span>
               </div>
             ))}
           </div>
@@ -283,15 +310,15 @@ export default function Dashboard() {
               { name: 'Clairo', price: '718', change: '+7.8%', up: true },
               { name: 'Drake', price: '11,242', change: '-1.9%', up: false },
             ].map((t, i, arr) => (
-              <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #111' : 'none' }}>
-                <span style={{ color: '#ddd', fontSize: '13px', flex: 1 }}>{t.name}</span>
-                <span style={{ color: '#888', fontSize: '12px' }}>{t.price} CR</span>
-                <span style={{ color: t.up ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: '500' }}>{t.change}</span>
+              <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #111' : 'none' }}>
+                <span style={{ color: '#ddd', fontSize: '14px', flex: 1 }}>{t.name}</span>
+                <span style={{ color: '#888', fontSize: '13px' }}>{t.price} CR</span>
+                <span style={{ color: t.up ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500' }}>{t.change}</span>
               </div>
             ))}
           </div>
 
-          <button onClick={() => router.push('/explore')} style={{ width: '100%', background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '14px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}>
+          <button onClick={() => router.push('/explore')} style={{ width: '100%', background: '#4ade80', color: '#000', fontSize: '15px', fontWeight: '500', padding: '15px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}>
             Explore artists
           </button>
         </div>
