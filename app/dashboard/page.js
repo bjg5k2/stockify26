@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [artistData, setArtistData] = useState({})
   const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
+  const [sortBy, setSortBy] = useState('value')
   const router = useRouter()
 
   useEffect(() => {
@@ -65,6 +66,22 @@ export default function Dashboard() {
     return (((current - h.buy_price) / h.buy_price) * 100).toFixed(1)
   }
 
+  const getSortedHoldings = () => {
+    const sorted = [...holdings]
+    if (sortBy === 'value') {
+      return sorted.sort((a, b) => {
+        const aArtist = artistData[a.artist_id]
+        const bArtist = artistData[b.artist_id]
+        const aVal = aArtist ? a.shares * getPrice(aArtist) : 0
+        const bVal = bArtist ? b.shares * getPrice(bArtist) : 0
+        return bVal - aVal
+      })
+    }
+    if (sortBy === 'date') return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    if (sortBy === 'az') return sorted.sort((a, b) => a.artist_name.localeCompare(b.artist_name))
+    return sorted
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -95,6 +112,18 @@ export default function Dashboard() {
     { date: 'Now', value: Math.round(netWorth) }
   ]
   if (chartData.length < 2) chartData.unshift({ date: 'Start', value: 1000 })
+
+  const sortedHoldings = getSortedHoldings()
+
+  const sortBtnStyle = (active) => ({
+    background: active ? '#0f2a18' : '#0f0f0f',
+    border: `0.5px solid ${active ? '#1a4a2a' : '#1c1c1c'}`,
+    color: active ? '#4ade80' : '#555',
+    fontSize: '11px',
+    padding: '5px 12px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  })
 
   return (
     <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
@@ -172,8 +201,16 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Holdings */}
-          <div style={{ color: '#fff', fontSize: '17px', fontWeight: '500', marginBottom: '16px' }}>Your holdings</div>
+          {/* Holdings header with sort */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ color: '#fff', fontSize: '17px', fontWeight: '500' }}>Your holdings</div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button style={sortBtnStyle(sortBy === 'value')} onClick={() => setSortBy('value')}>Value ↓</button>
+              <button style={sortBtnStyle(sortBy === 'date')} onClick={() => setSortBy('date')}>Date</button>
+              <button style={sortBtnStyle(sortBy === 'az')} onClick={() => setSortBy('az')}>A–Z</button>
+            </div>
+          </div>
+
           {holdings.length === 0 ? (
             <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
               <p style={{ color: '#555', fontSize: '15px', marginBottom: '16px' }}>You haven't invested in any artists yet.</p>
@@ -182,7 +219,7 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            holdings.map(h => {
+            sortedHoldings.map(h => {
               const artist = artistData[h.artist_id]
               const currentPrice = artist ? getPrice(artist) : h.buy_price
               const currentValue = h.shares * currentPrice
@@ -202,7 +239,7 @@ export default function Dashboard() {
                   )}
                   <div style={{ flex: 1 }}>
                     <div style={{ color: '#ddd', fontSize: '15px', fontWeight: '500' }}>{h.artist_name}</div>
-                    <div style={{ color: '#555', fontSize: '13px', marginTop: '3px' }}>{h.shares.toFixed(2)} shares · bought at {Math.round(h.buy_price).toLocaleString()} CR</div>
+                    <div style={{ color: '#555', fontSize: '13px', marginTop: '3px' }}>{h.shares.toFixed(2)} shares · avg {Math.round(h.buy_price).toLocaleString()} CR</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', justifyContent: 'flex-end' }}>
@@ -223,8 +260,6 @@ export default function Dashboard() {
 
         {/* Sidebar */}
         <div style={{ padding: '32px 28px', overflow: 'auto' }}>
-
-          {/* Account Summary */}
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>ACCOUNT SUMMARY</div>
             {[
@@ -240,7 +275,6 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Trending */}
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>TRENDING TODAY</div>
             {[
