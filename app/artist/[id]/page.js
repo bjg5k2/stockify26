@@ -47,7 +47,7 @@ export default function ArtistPage() {
   }, [id])
 
   const getPrice = (a) => {
-    return Math.round(Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200))
+    return Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10)
   }
 
   const showMessage = (text, success = true) => {
@@ -123,7 +123,6 @@ export default function ArtistPage() {
       setHolding(data)
     }
 
-    // Log transaction
     const { data: tx } = await supabase.from('transactions').insert({
       user_id: user.id,
       artist_id: artist.id,
@@ -164,7 +163,6 @@ export default function ArtistPage() {
       setHolding({ ...holding, shares: holding.shares - sharesToSell })
     }
 
-    // Log transaction
     const { data: tx } = await supabase.from('transactions').insert({
       user_id: user.id,
       artist_id: artist.id,
@@ -204,7 +202,7 @@ export default function ArtistPage() {
 
   const tabStyle = (active) => ({
     flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-    fontSize: '12px', fontWeight: '500',
+    fontSize: '13px', fontWeight: '500',
     background: active ? '#1a1a1a' : 'transparent',
     color: active ? '#fff' : '#555',
   })
@@ -213,14 +211,17 @@ export default function ArtistPage() {
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
-      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '20px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button onClick={() => router.back()} style={{ background: 'transparent', border: 'none', color: '#555', fontSize: '14px', cursor: 'pointer' }}>← Back</button>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
+          <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ color: '#fff', fontWeight: '500', fontSize: '14px' }}>{profile?.credits?.toLocaleString()}</span>
-            <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
+            <span style={{ color: '#fff', fontWeight: '500', fontSize: '16px' }}>{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
           </div>
+          <button onClick={() => router.back()} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>← Back</button>
         </div>
       </nav>
 
@@ -376,13 +377,13 @@ export default function ArtistPage() {
                 }}>
                   {tx.type.toUpperCase()}
                 </span>
-                <span style={{ color: '#ddd', fontSize: '13px', flex: 1 }}>{tx.shares.toFixed(2)} shares</span>
+                <span style={{ color: '#ddd', fontSize: '14px', flex: 1 }}>{tx.shares.toFixed(2)} shares</span>
                 <span style={{ color: '#555', fontSize: '13px' }}>@ {Math.round(tx.price_per_share).toLocaleString()} CR each</span>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ color: tx.type === 'buy' ? '#fff' : '#f87171', fontSize: '13px', fontWeight: '500' }}>
+                  <div style={{ color: tx.type === 'buy' ? '#fff' : '#f87171', fontSize: '14px', fontWeight: '500' }}>
                     {tx.type === 'sell' ? '−' : ''}{Math.round(tx.total).toLocaleString()} CR
                   </div>
-                  <div style={{ color: '#444', fontSize: '11px', marginTop: '2px' }}>
+                  <div style={{ color: '#444', fontSize: '12px', marginTop: '2px' }}>
                     {new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </div>
                 </div>
@@ -390,7 +391,6 @@ export default function ArtistPage() {
             ))}
           </div>
         )}
-
       </div>
     </main>
   )

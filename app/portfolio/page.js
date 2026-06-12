@@ -38,9 +38,7 @@ export default function Portfolio() {
   }, [])
 
   const getPrice = (artist) => {
-    const followers = artist.followers
-    const popularity = artist.popularity
-    return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
   }
 
   const getProfitLoss = (holding) => {
@@ -73,16 +71,16 @@ export default function Portfolio() {
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
-      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '18px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <span onClick={() => router.push('/dashboard')} style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Portfolio</span>
-          <span onClick={() => router.push('/explore')} style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Leaderboard</span>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
+          <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
         </div>
       </nav>
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 48px' }}>
 
         <h1 style={{ color: '#fff', fontSize: '28px', fontWeight: '500', letterSpacing: '-0.5px', marginBottom: '28px' }}>Your Portfolio</h1>
 
@@ -94,7 +92,7 @@ export default function Portfolio() {
             { label: 'Total Profit / Loss', val: `${totalPL >= 0 ? '+' : ''}${Math.round(totalPL).toLocaleString()}`, color: totalPL >= 0 ? '#4ade80' : '#f87171' },
           ].map(m => (
             <div key={m.label} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px' }}>
-              <div style={{ color: '#555', fontSize: '11px', marginBottom: '8px' }}>{m.label}</div>
+              <div style={{ color: '#555', fontSize: '12px', marginBottom: '8px' }}>{m.label}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                 <span style={{ color: m.color, fontSize: '22px', fontWeight: '500' }}>{m.val}</span>
                 <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
@@ -106,8 +104,8 @@ export default function Portfolio() {
         {/* Holdings */}
         {holdings.length === 0 ? (
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
-            <p style={{ color: '#555', fontSize: '14px', marginBottom: '16px' }}>You haven't invested in any artists yet.</p>
-            <button onClick={() => router.push('/explore')} style={{ background: '#4ade80', color: '#000', fontSize: '13px', fontWeight: '500', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+            <p style={{ color: '#555', fontSize: '15px', marginBottom: '16px' }}>You haven't invested in any artists yet.</p>
+            <button onClick={() => router.push('/explore')} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
               Explore Artists
             </button>
           </div>
@@ -134,8 +132,8 @@ export default function Portfolio() {
                   )}
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: '#ddd', fontSize: '15px', fontWeight: '500', marginBottom: '3px' }}>{h.artist_name}</div>
-                    <div style={{ color: '#555', fontSize: '12px' }}>
+                    <div style={{ color: '#ddd', fontSize: '16px', fontWeight: '500', marginBottom: '3px' }}>{h.artist_name}</div>
+                    <div style={{ color: '#555', fontSize: '13px' }}>
                       {h.shares.toFixed(2)} shares · bought at {Math.round(h.buy_price).toLocaleString()} <span style={{ color: '#4ade80', fontSize: '11px' }}>CR</span>
                     </div>
                   </div>
@@ -146,7 +144,7 @@ export default function Portfolio() {
                       <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
                     </div>
                     {pl !== null && (
-                      <div style={{ color: up ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: '500' }}>
+                      <div style={{ color: up ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500' }}>
                         {up ? '+' : ''}{Math.round(pl).toLocaleString()} CR ({up ? '+' : ''}{plPct}%)
                       </div>
                     )}
@@ -159,7 +157,7 @@ export default function Portfolio() {
 
         <button
           onClick={() => router.push('/explore')}
-          style={{ width: '100%', marginTop: '20px', background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '14px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
+          style={{ width: '100%', marginTop: '20px', background: '#4ade80', color: '#000', fontSize: '15px', fontWeight: '500', padding: '15px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
         >
           Explore More Artists
         </button>

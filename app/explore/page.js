@@ -53,7 +53,6 @@ export default function Explore() {
         .from('holdings').select('artist_id').eq('user_id', user.id)
       setHoldings((holdingsData || []).map(h => h.artist_id))
 
-      // Fetch featured artists
       const updated = await Promise.all(
         FEATURED_IDS.map(async (a) => {
           try {
@@ -76,7 +75,7 @@ export default function Explore() {
   }, [])
 
   const getPrice = (artist) => {
-    return Math.round(Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200))
+    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
   }
 
   const searchArtists = async (q) => {
@@ -109,20 +108,20 @@ export default function Explore() {
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
-      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '20px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
-        <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
-          <span onClick={() => router.push('/dashboard')} style={{ color: '#555', fontSize: '14px', cursor: 'pointer' }}>Portfolio</span>
-          <span style={{ color: '#fff', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#555', fontSize: '14px', cursor: 'pointer' }}>Leaderboard</span>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
+          <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ color: '#fff', fontWeight: '500', fontSize: '14px' }}>{profile?.credits?.toLocaleString()}</span>
-            <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
+            <span style={{ color: '#fff', fontWeight: '500', fontSize: '16px' }}>{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
           </div>
         </div>
       </nav>
 
-      <div style={{ padding: '32px 40px' }}>
+      <div style={{ padding: '32px 48px' }}>
 
         {/* Search */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
@@ -135,7 +134,7 @@ export default function Explore() {
           />
           <button
             onClick={() => searchArtists()}
-            style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '14px 28px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
+            style={{ background: '#4ade80', color: '#000', fontSize: '15px', fontWeight: '500', padding: '14px 28px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
           >
             Search
           </button>
@@ -203,7 +202,7 @@ export default function Explore() {
                 <button
                   key={name}
                   onClick={() => handleTrending(name)}
-                  style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '20px', padding: '6px 14px', color: '#666', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '20px', padding: '6px 14px', color: '#666', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
                   {i < 2 && <span style={{ color: '#f87171', fontSize: '11px' }}>🔥</span>}
                   {name}
@@ -233,17 +232,15 @@ export default function Explore() {
                     onClick={() => router.push(`/artist/${artist.id}`)}
                     style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
                   >
-                    {/* Image */}
                     {artist.image ? (
-                      <img src={artist.image} alt={artist.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      <img src={artist.image} alt={artist.name} style={{ width: '52px', height: '52px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                     ) : (
-                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🎵</div>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🎵</div>
                     )}
 
-                    {/* Info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ color: '#ddd', fontSize: '15px', fontWeight: '500' }}>{artist.name}</span>
+                        <span style={{ color: '#ddd', fontSize: '16px', fontWeight: '500' }}>{artist.name}</span>
                         {isHot && (
                           <span style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '10px', fontWeight: '500', padding: '2px 8px', borderRadius: '10px' }}>🔥 HOT</span>
                         )}
@@ -251,22 +248,19 @@ export default function Explore() {
                           <span style={{ background: '#0f2a18', border: '0.5px solid #1a4a2a', color: '#4ade80', fontSize: '10px', fontWeight: '500', padding: '2px 8px', borderRadius: '10px' }}>✓ OWNED</span>
                         )}
                       </div>
-                      <div style={{ color: '#555', fontSize: '12px' }}>
+                      <div style={{ color: '#555', fontSize: '13px' }}>
                         {artist.followers.toLocaleString()} followers · popularity {artist.popularity}/100
                         {artist.genres.length > 0 && ` · ${artist.genres.join(', ')}`}
                       </div>
                     </div>
 
-                    {/* Price */}
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: 'flex-end' }}>
-                        <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{price.toLocaleString()}</span>
-                        <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
+                        <span style={{ color: '#fff', fontSize: '18px', fontWeight: '500' }}>{price.toLocaleString()}</span>
+                        <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
                       </div>
-                      <div style={{ color: '#555', fontSize: '11px', marginTop: '2px' }}>per share</div>
+                      <div style={{ color: '#555', fontSize: '12px', marginTop: '2px' }}>per share</div>
                     </div>
-
-                    <div style={{ color: '#333', fontSize: '20px', flexShrink: 0 }}>›</div>
                   </div>
                 )
               })}

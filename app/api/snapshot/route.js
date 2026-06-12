@@ -21,7 +21,7 @@ async function getSpotifyToken() {
 }
 
 function getPrice(followers, popularity) {
-  return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+  return Math.round((Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10)
 }
 
 export async function GET(request) {
@@ -31,7 +31,6 @@ export async function GET(request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all unique artist IDs from holdings
     const { data: holdings } = await supabase
       .from('holdings')
       .select('artist_id, artist_name')
@@ -40,10 +39,8 @@ export async function GET(request) {
       return Response.json({ message: 'No holdings to snapshot' })
     }
 
-    // Deduplicate
     const uniqueArtists = [...new Map(holdings.map(h => [h.artist_id, h])).values()]
 
-    // Chunk into groups of 50
     const chunks = []
     for (let i = 0; i < uniqueArtists.length; i += 50) {
       chunks.push(uniqueArtists.slice(i, i + 50))
@@ -54,7 +51,6 @@ export async function GET(request) {
     let totalSnapshotted = 0
     const priceMap = {}
 
-    // Fetch each chunk from Spotify
     for (const chunk of chunks) {
       const ids = chunk.map(a => a.artist_id).join(',')
       const res = await fetch(
@@ -82,7 +78,6 @@ export async function GET(request) {
       }
     }
 
-    // Snapshot each user's portfolio value
     const { data: profiles } = await supabase.from('profiles').select('*')
 
     for (const profile of profiles) {
