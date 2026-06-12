@@ -37,7 +37,11 @@ export default function Portfolio() {
     getData()
   }, [])
 
-  const getPrice = (artist) => Math.max(1, Math.round(artist.followers / 10000))
+  const getPrice = (artist) => {
+    const followers = artist.followers
+    const popularity = artist.popularity
+    return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+  }
 
   const getProfitLoss = (holding) => {
     const artist = artistData[holding.artist_id]
@@ -56,8 +60,8 @@ export default function Portfolio() {
   }
 
   if (loading) return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading portfolio...</p>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+      <p style={{ color: '#555' }}>Loading portfolio...</p>
     </main>
   )
 
@@ -65,97 +69,87 @@ export default function Portfolio() {
   const totalInvested = holdings.reduce((t, h) => t + h.shares * h.buy_price, 0)
   const totalPL = totalValue - totalInvested
 
-  const CRsym = (size = '13px') => (
-    <span style={{ color: '#4ade80', fontSize: size, fontWeight: '500', marginLeft: '3px' }}>CR</span>
-  )
-
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto">
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-green-400">Your Portfolio</h1>
-          <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-white transition text-sm">
-            ← Back to Dashboard
-          </button>
+      {/* Navbar */}
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '18px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/dashboard')} style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Portfolio</span>
+          <span onClick={() => router.push('/explore')} style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Leaderboard</span>
         </div>
+      </nav>
 
-        {/* Summary */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-gray-900 rounded-2xl p-6 text-center">
-            <p className="text-gray-400 text-sm mb-2">Credits Available</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold">{profile?.credits?.toLocaleString()}</span>
-              {CRsym('16px')}
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
+
+        <h1 style={{ color: '#fff', fontSize: '28px', fontWeight: '500', letterSpacing: '-0.5px', marginBottom: '28px' }}>Your Portfolio</h1>
+
+        {/* Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
+          {[
+            { label: 'Credits Available', val: profile?.credits?.toLocaleString(), color: '#fff' },
+            { label: 'Portfolio Value', val: Math.round(totalValue).toLocaleString(), color: '#fff' },
+            { label: 'Total Profit / Loss', val: `${totalPL >= 0 ? '+' : ''}${Math.round(totalPL).toLocaleString()}`, color: totalPL >= 0 ? '#4ade80' : '#f87171' },
+          ].map(m => (
+            <div key={m.label} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px' }}>
+              <div style={{ color: '#555', fontSize: '11px', marginBottom: '8px' }}>{m.label}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <span style={{ color: m.color, fontSize: '22px', fontWeight: '500' }}>{m.val}</span>
+                <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
+              </div>
             </div>
-          </div>
-          <div className="bg-gray-900 rounded-2xl p-6 text-center">
-            <p className="text-gray-400 text-sm mb-2">Portfolio Value</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-2xl font-bold">{totalValue.toLocaleString()}</span>
-              {CRsym('16px')}
-            </div>
-          </div>
-          <div className="bg-gray-900 rounded-2xl p-6 text-center">
-            <p className="text-gray-400 text-sm mb-2">Total Profit / Loss</p>
-            <div className="flex items-baseline justify-center gap-1">
-              <span className={`text-2xl font-bold ${totalPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {totalPL >= 0 ? '+' : ''}{totalPL.toLocaleString()}
-              </span>
-              {CRsym('16px')}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Holdings */}
         {holdings.length === 0 ? (
-          <div className="bg-gray-900 rounded-2xl p-8 text-center">
-            <p className="text-gray-400 mb-4">You haven't invested in any artists yet.</p>
-            <button onClick={() => router.push('/explore')} className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition">
+          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '40px', textAlign: 'center' }}>
+            <p style={{ color: '#555', fontSize: '14px', marginBottom: '16px' }}>You haven't invested in any artists yet.</p>
+            <button onClick={() => router.push('/explore')} style={{ background: '#4ade80', color: '#000', fontSize: '13px', fontWeight: '500', padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
               Explore Artists
             </button>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {holdings.map(h => {
               const artist = artistData[h.artist_id]
               const currentPrice = artist ? getPrice(artist) : h.buy_price
               const currentValue = h.shares * currentPrice
               const pl = getProfitLoss(h)
-              const plPercent = artist ? (((currentPrice - h.buy_price) / h.buy_price) * 100).toFixed(1) : 0
+              const plPct = artist ? (((currentPrice - h.buy_price) / h.buy_price) * 100).toFixed(1) : '0.0'
+              const up = pl >= 0
 
               return (
                 <div
                   key={h.id}
-                  className="bg-gray-900 rounded-2xl p-6 cursor-pointer hover:bg-gray-800 transition"
                   onClick={() => router.push(`/artist/${h.artist_id}`)}
+                  style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      {artist?.image ? (
-                        <img src={artist.image} alt={h.artist_name} className="w-14 h-14 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-gray-700 flex items-center justify-center text-2xl">🎵</div>
-                      )}
-                      <div>
-                        <p className="font-bold text-lg">{h.artist_name}</p>
-                        <p className="text-gray-400 text-sm">
-                          {h.shares} shares · bought at {h.buy_price.toLocaleString()} <span style={{ color: '#4ade80', fontSize: '11px' }}>CR</span>
-                        </p>
-                      </div>
+                  {artist?.image ? (
+                    <img src={artist.image} alt={h.artist_name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
+                  )}
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: '#ddd', fontSize: '15px', fontWeight: '500', marginBottom: '3px' }}>{h.artist_name}</div>
+                    <div style={{ color: '#555', fontSize: '12px' }}>
+                      {h.shares.toFixed(2)} shares · bought at {Math.round(h.buy_price).toLocaleString()} <span style={{ color: '#4ade80', fontSize: '11px' }}>CR</span>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-baseline justify-end gap-1">
-                        <span className="font-bold text-lg">{currentValue.toLocaleString()}</span>
-                        <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
-                      </div>
-                      {pl !== null && (
-                        <p className={`text-sm font-bold ${pl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {pl >= 0 ? '+' : ''}{pl.toLocaleString()} ({plPercent}%)
-                        </p>
-                      )}
+                  </div>
+
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: 'flex-end', marginBottom: '3px' }}>
+                      <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
+                      <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
                     </div>
+                    {pl !== null && (
+                      <div style={{ color: up ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: '500' }}>
+                        {up ? '+' : ''}{Math.round(pl).toLocaleString()} CR ({up ? '+' : ''}{plPct}%)
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -163,11 +157,12 @@ export default function Portfolio() {
           </div>
         )}
 
-        {holdings.length > 0 && (
-          <button onClick={() => router.push('/explore')} className="w-full mt-6 bg-green-400 text-black font-bold py-4 rounded-2xl hover:bg-green-300 transition text-lg">
-            Explore More Artists
-          </button>
-        )}
+        <button
+          onClick={() => router.push('/explore')}
+          style={{ width: '100%', marginTop: '20px', background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '14px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}
+        >
+          Explore More Artists
+        </button>
 
       </div>
     </main>

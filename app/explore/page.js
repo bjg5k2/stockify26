@@ -8,7 +8,6 @@ export default function Explore() {
   const [artists, setArtists] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [buyAmount, setBuyAmount] = useState({})
   const [message, setMessage] = useState('')
   const router = useRouter()
 
@@ -22,6 +21,12 @@ export default function Explore() {
     getProfile()
   }, [])
 
+  const getPrice = (artist) => {
+    const followers = artist.followers
+    const popularity = artist.popularity
+    return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+  }
+
   const searchArtists = async () => {
     if (!query) return
     setLoading(true)
@@ -31,136 +36,88 @@ export default function Explore() {
     setLoading(false)
   }
 
-  const getPrice = (artist) => Math.max(1, Math.round(artist.followers / 10000))
-
-  const buyShares = async (artist) => {
-    const amount = parseInt(buyAmount[artist.id] || 1)
-    const price = getPrice(artist)
-    const totalCost = amount * price
-
-    if (totalCost > profile.credits) {
-      setMessage('Not enough credits!')
-      setTimeout(() => setMessage(''), 3000)
-      return
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const { data: existing } = await supabase
-      .from('holdings')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('artist_id', artist.id)
-      .single()
-
-    if (existing) {
-      await supabase.from('holdings').update({ shares: existing.shares + amount }).eq('id', existing.id)
-    } else {
-      await supabase.from('holdings').insert({
-        user_id: user.id,
-        artist_id: artist.id,
-        artist_name: artist.name,
-        shares: amount,
-        buy_price: price
-      })
-    }
-
-    await supabase.from('profiles').update({ credits: profile.credits - totalCost }).eq('id', user.id)
-    setProfile({ ...profile, credits: profile.credits - totalCost })
-    setMessage(`Bought ${amount} share(s) of ${artist.name} for ${totalCost.toLocaleString()} CR!`)
-    setTimeout(() => setMessage(''), 3000)
-  }
-
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-4xl mx-auto">
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-green-400">Explore Artists</h1>
-          <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-white transition text-sm">
-            ← Back to Dashboard
-          </button>
+      {/* Navbar */}
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '18px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/dashboard')} style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Portfolio</span>
+          <span style={{ color: '#fff', fontSize: '13px', cursor: 'pointer' }}>Explore</span>
+          <span style={{ color: '#555', fontSize: '13px', cursor: 'pointer' }}>Leaderboard</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ color: '#fff', fontWeight: '500' }}>{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
+          </div>
         </div>
+      </nav>
 
-        {/* Credits */}
-        {profile && (
-          <div className="bg-gray-900 rounded-2xl p-4 mb-6 flex items-baseline gap-2">
-            <span className="text-white font-bold text-xl">{profile.credits.toLocaleString()}</span>
-            <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '500' }}>CR</span>
-            <span className="text-gray-400 text-sm ml-1">available</span>
-          </div>
-        )}
+      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
 
-        {/* Message */}
-        {message && (
-          <div className="bg-green-400 text-black font-bold px-4 py-3 rounded-xl mb-6">
-            {message}
-          </div>
-        )}
+        <h1 style={{ color: '#fff', fontSize: '28px', fontWeight: '500', letterSpacing: '-0.5px', marginBottom: '8px' }}>Explore Artists</h1>
+        <p style={{ color: '#555', fontSize: '14px', marginBottom: '28px' }}>Search any artist and invest with your credits.</p>
 
         {/* Search */}
-        <div className="flex gap-3 mb-8">
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '28px' }}>
           <input
-            className="flex-1 bg-gray-900 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-green-400"
+            style={{ flex: 1, background: '#0f0f0f', border: '0.5px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px', color: '#fff', fontSize: '14px', outline: 'none' }}
             placeholder="Search for an artist..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && searchArtists()}
           />
-          <button onClick={searchArtists} className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition">
+          <button
+            onClick={searchArtists}
+            style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+          >
             Search
           </button>
         </div>
 
-        {/* Results */}
-        {loading && <p className="text-gray-400">Searching...</p>}
-        <div className="flex flex-col gap-4">
-          {artists.map(artist => (
-            <div key={artist.id} className="bg-gray-900 rounded-2xl p-4 flex items-center gap-4">
+        {/* Message */}
+        {message && (
+          <div style={{ background: '#0f2a18', border: '0.5px solid #1a4a2a', borderRadius: '8px', padding: '12px 16px', color: '#4ade80', fontSize: '13px', marginBottom: '16px' }}>
+            {message}
+          </div>
+        )}
 
+        {loading && <p style={{ color: '#555', fontSize: '14px' }}>Searching...</p>}
+
+        {/* Results */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {artists.map(artist => (
+            <div
+              key={artist.id}
+              onClick={() => router.push(`/artist/${artist.id}`)}
+              style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
+            >
               {artist.image ? (
-                <img src={artist.image} alt={artist.name} className="w-16 h-16 rounded-full object-cover" />
+                <img src={artist.image} alt={artist.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-2xl">🎵</div>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>🎵</div>
               )}
 
-              <div className="flex-1">
-                <p
-                  className="font-bold text-lg cursor-pointer hover:text-green-400 transition"
-                  onClick={() => router.push(`/artist/${artist.id}`)}
-                >
-                  {artist.name}
-                </p>
-                <p className="text-gray-400 text-sm">{artist.followers.toLocaleString()} followers</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#ddd', fontSize: '15px', fontWeight: '500', marginBottom: '3px' }}>{artist.name}</div>
+                <div style={{ color: '#555', fontSize: '12px' }}>{artist.followers.toLocaleString()} followers · popularity {artist.popularity}/100</div>
                 {artist.genres.length > 0 && (
-                  <p className="text-gray-500 text-xs mt-1">{artist.genres.join(', ')}</p>
+                  <div style={{ color: '#444', fontSize: '11px', marginTop: '2px' }}>{artist.genres.join(', ')}</div>
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-white font-bold">
-                    {getPrice(artist).toLocaleString()} <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
-                  </p>
-                  <p className="text-gray-400 text-xs">per share</p>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: 'flex-end' }}>
+                  <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{getPrice(artist).toLocaleString()}</span>
+                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
                 </div>
-                <input
-                  type="number"
-                  min="1"
-                  value={buyAmount[artist.id] || 1}
-                  onChange={e => setBuyAmount({ ...buyAmount, [artist.id]: e.target.value })}
-                  className="w-16 bg-gray-800 rounded-lg px-2 py-1 text-white text-center outline-none"
-                />
-                <button onClick={() => buyShares(artist)} className="bg-green-400 text-black font-bold px-4 py-2 rounded-xl hover:bg-green-300 transition">
-                  Buy
-                </button>
+                <div style={{ color: '#555', fontSize: '11px', marginTop: '2px' }}>per share</div>
               </div>
 
+              <div style={{ color: '#333', fontSize: '18px', flexShrink: 0 }}>›</div>
             </div>
           ))}
         </div>
-
       </div>
     </main>
   )

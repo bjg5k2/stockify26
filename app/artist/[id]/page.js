@@ -7,9 +7,11 @@ export default function ArtistPage() {
   const [artist, setArtist] = useState(null)
   const [profile, setProfile] = useState(null)
   const [holding, setHolding] = useState(null)
-  const [buyAmount, setBuyAmount] = useState(1)
-  const [sellAmount, setSellAmount] = useState(1)
-  const [message, setMessage] = useState('')
+  const [buyMode, setBuyMode] = useState('cr')
+  const [sellMode, setSellMode] = useState('cr')
+  const [buyInput, setBuyInput] = useState('')
+  const [sellInput, setSellInput] = useState('')
+  const [message, setMessage] = useState({ text: '', success: true })
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const { id } = useParams()
@@ -35,125 +37,208 @@ export default function ArtistPage() {
     getData()
   }, [id])
 
-  const getPrice = (artist) => Math.max(1, Math.round(artist.followers / 10000))
+  const getPrice = (a) => {
+    const followers = a.followers
+    const popularity = a.popularity
+    return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+  }
 
-  const showMessage = (msg) => {
-    setMessage(msg)
-    setTimeout(() => setMessage(''), 3000)
+  const showMessage = (text, success = true) => {
+    setMessage({ text, success })
+    setTimeout(() => setMessage({ text: '', success: true }), 3000)
+  }
+
+  // Force whole numbers only
+  const handleBuyInput = (val) => {
+    setBuyInput(Math.floor(Math.abs(val)) || '')
+  }
+
+  const handleSellInput = (val) => {
+    if (sellMode === 'cr') {
+      setSellInput(Math.floor(Math.abs(val)) || '')
+    } else {
+      setSellInput(val)
+    }
+  }
+
+  const getBuyShares = () => {
+    if (!artist) return 0
+    const price = getPrice(artist)
+    if (buyMode === 'cr') return parseInt(buyInput) / price || 0
+    return parseFloat(buyInput) || 0
+  }
+
+  const getBuyCost = () => {
+    if (!artist) return 0
+    const price = getPrice(artist)
+    if (buyMode === 'cr') return parseInt(buyInput) || 0
+    return Math.floor((parseFloat(buyInput) || 0) * price)
+  }
+
+  const getSellShares = () => {
+    if (!artist || !holding) return 0
+    const price = getPrice(artist)
+    if (sellMode === 'cr') return parseInt(sellInput) / price || 0
+    return parseFloat(sellInput) || 0
+  }
+
+  const getSellReturn = () => {
+    if (!artist) return 0
+    const price = getPrice(artist)
+    if (sellMode === 'cr') return parseInt(sellInput) || 0
+    return Math.floor((parseFloat(sellInput) || 0) * price)
   }
 
   const buyShares = async () => {
-    const amount = parseInt(buyAmount)
+    const shares = getBuyShares()
+    const cost = getBuyCost()
     const price = getPrice(artist)
-    const totalCost = amount * price
-    if (totalCost > profile.credits) { showMessage('Not enough credits!'); return }
+
+    if (!shares || shares <= 0) { showMessage('Enter a valid amount.', false); return }
+    if (cost > profile.credits) { showMessage('Not enough credits!', false); return }
 
     const { data: { user } } = await supabase.auth.getUser()
 
     if (holding) {
-      await supabase.from('holdings').update({ shares: holding.shares + amount }).eq('id', holding.id)
-      setHolding({ ...holding, shares: holding.shares + amount })
+      await supabase.from('holdings')
+        .update({ shares: holding.shares + shares })
+        .eq('id', holding.id)
+      setHolding({ ...holding, shares: holding.shares + shares })
     } else {
       const { data } = await supabase.from('holdings').insert({
         user_id: user.id,
         artist_id: artist.id,
         artist_name: artist.name,
-        shares: amount,
+        shares,
         buy_price: price
       }).select().single()
       setHolding(data)
     }
 
-    await supabase.from('profiles').update({ credits: profile.credits - totalCost }).eq('id', user.id)
-    setProfile({ ...profile, credits: profile.credits - totalCost })
-    showMessage(`Bought ${amount} share(s) for ${totalCost.toLocaleString()} CR!`)
+    await supabase.from('profiles')
+      .update({ credits: profile.credits - cost })
+      .eq('id', user.id)
+    setProfile({ ...profile, credits: profile.credits - cost })
+    setBuyInput('')
+    showMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
   }
 
-  const sellShares = async () => {
-    const amount = parseInt(sellAmount)
-    if (!holding || amount > holding.shares) { showMessage('Not enough shares!'); return }
-
+  const sellShares = async (sellAll = false) => {
+    if (!holding) return
     const price = getPrice(artist)
-    const totalReturn = amount * price
+    const sharesToSell = sellAll ? holding.shares : getSellShares()
+    const returnAmount = Math.floor(sharesToSell * price)
+
+    if (!sharesToSell || sharesToSell <= 0) { showMessage('Enter a valid amount.', false); return }
+    if (sharesToSell > holding.shares) { showMessage('Not enough shares!', false); return }
+
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (holding.shares - amount === 0) {
+    if (holding.shares - sharesToSell <= 0.0001) {
       await supabase.from('holdings').delete().eq('id', holding.id)
       setHolding(null)
     } else {
-      await supabase.from('holdings').update({ shares: holding.shares - amount }).eq('id', holding.id)
-      setHolding({ ...holding, shares: holding.shares - amount })
+      await supabase.from('holdings')
+        .update({ shares: holding.shares - sharesToSell })
+        .eq('id', holding.id)
+      setHolding({ ...holding, shares: holding.shares - sharesToSell })
     }
 
-    await supabase.from('profiles').update({ credits: profile.credits + totalReturn }).eq('id', user.id)
-    setProfile({ ...profile, credits: profile.credits + totalReturn })
-    showMessage(`Sold ${amount} share(s) for ${totalReturn.toLocaleString()} CR!`)
+    await supabase.from('profiles')
+      .update({ credits: profile.credits + returnAmount })
+      .eq('id', user.id)
+    setProfile({ ...profile, credits: profile.credits + returnAmount })
+    setSellInput('')
+    showMessage(`Sold ${sharesToSell.toFixed(2)} shares for ${returnAmount.toLocaleString()} CR!`)
   }
 
   if (loading) return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading...</p>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+      <p style={{ color: '#555' }}>Loading...</p>
     </main>
   )
 
   if (!artist) return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <p className="text-gray-400">Artist not found.</p>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
+      <p style={{ color: '#555' }}>Artist not found.</p>
     </main>
   )
 
   const price = getPrice(artist)
+  const currentValue = holding ? holding.shares * price : 0
+  const pl = holding ? currentValue - (holding.shares * holding.buy_price) : 0
+  const plPct = holding ? (((price - holding.buy_price) / holding.buy_price) * 100).toFixed(1) : 0
+
+  const tabStyle = (active) => ({
+    flex: 1,
+    padding: '8px',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500',
+    background: active ? '#1a1a1a' : 'transparent',
+    color: active ? '#fff' : '#555',
+  })
 
   return (
-    <main className="min-h-screen bg-black text-white p-8">
-      <div className="max-w-2xl mx-auto">
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <button onClick={() => router.back()} className="text-gray-400 hover:text-white transition text-sm">
-            ← Back
-          </button>
-          <div className="flex items-baseline gap-1">
-            <span className="text-white font-bold">{profile?.credits?.toLocaleString()}</span>
-            <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
+      {/* Navbar */}
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ color: '#4ade80', fontSize: '18px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button onClick={() => router.back()} style={{ background: 'transparent', border: 'none', color: '#555', fontSize: '13px', cursor: 'pointer' }}>← Back</button>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+            <span style={{ color: '#fff', fontWeight: '500' }}>{profile?.credits?.toLocaleString()}</span>
+            <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
           </div>
         </div>
+      </nav>
+
+      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '32px 24px' }}>
 
         {/* Artist Info */}
-        <div className="bg-gray-900 rounded-2xl p-6 mb-6 flex items-center gap-6">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '28px' }}>
           {artist.image ? (
-            <img src={artist.image} alt={artist.name} className="w-24 h-24 rounded-full object-cover" />
+            <img src={artist.image} alt={artist.name} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
           ) : (
-            <div className="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center text-4xl">🎵</div>
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>🎵</div>
           )}
-          <div>
-            <h1 className="text-3xl font-bold">{artist.name}</h1>
-            <p className="text-gray-400">{artist.followers.toLocaleString()} followers</p>
-            {artist.genres.length > 0 && (
-              <p className="text-gray-500 text-sm mt-1">{artist.genres.join(', ')}</p>
-            )}
-            <div className="flex items-baseline gap-1 mt-2">
-              <span className="text-white font-bold text-xl">{price.toLocaleString()}</span>
-              <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '500' }}>CR</span>
-              <span className="text-gray-400 text-sm ml-1">per share</span>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ color: '#fff', fontSize: '28px', fontWeight: '500', letterSpacing: '-0.5px', marginBottom: '4px' }}>{artist.name}</h1>
+            <p style={{ color: '#555', fontSize: '13px' }}>{artist.followers.toLocaleString()} followers · popularity {artist.popularity}/100</p>
+            {artist.genres.length > 0 && <p style={{ color: '#444', fontSize: '12px', marginTop: '2px' }}>{artist.genres.join(', ')}</p>}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', justifyContent: 'flex-end' }}>
+              <span style={{ color: '#fff', fontSize: '28px', fontWeight: '500' }}>{price.toLocaleString()}</span>
+              <span style={{ color: '#4ade80', fontSize: '16px', fontWeight: '500' }}>CR</span>
             </div>
+            <p style={{ color: '#555', fontSize: '12px' }}>per share</p>
           </div>
         </div>
 
-        {/* Current Holding */}
+        {/* Current Position */}
         {holding && (
-          <div className="bg-gray-900 rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-bold mb-2">Your Position</h3>
-            <div className="flex justify-between">
+          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px', marginBottom: '14px' }}>YOUR POSITION</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
               <div>
-                <p className="text-gray-400 text-sm">Shares owned</p>
-                <p className="text-2xl font-bold">{holding.shares}</p>
+                <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>Shares owned</div>
+                <div style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{holding.shares.toFixed(2)}</div>
               </div>
-              <div className="text-right">
-                <p className="text-gray-400 text-sm">Current value</p>
-                <div className="flex items-baseline gap-1 justify-end">
-                  <span className="text-2xl font-bold">{(holding.shares * price).toLocaleString()}</span>
-                  <span style={{ color: '#4ade80', fontSize: '16px', fontWeight: '500' }}>CR</span>
+              <div>
+                <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>Current value</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+                  <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
+                  <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>Profit / Loss</div>
+                <div style={{ color: pl >= 0 ? '#4ade80' : '#f87171', fontSize: '16px', fontWeight: '500' }}>
+                  {pl >= 0 ? '+' : ''}{Math.round(pl).toLocaleString()} CR ({plPct}%)
                 </div>
               </div>
             </div>
@@ -161,53 +246,90 @@ export default function ArtistPage() {
         )}
 
         {/* Message */}
-        {message && (
-          <div className="bg-green-400 text-black font-bold px-4 py-3 rounded-xl mb-6">
-            {message}
+        {message.text && (
+          <div style={{ background: message.success ? '#0f2a18' : '#1a0a0a', border: `0.5px solid ${message.success ? '#1a4a2a' : '#3a1a1a'}`, borderRadius: '8px', padding: '12px 16px', color: message.success ? '#4ade80' : '#f87171', fontSize: '13px', marginBottom: '16px' }}>
+            {message.text}
           </div>
         )}
 
         {/* Buy */}
-        <div className="bg-gray-900 rounded-2xl p-6 mb-4">
-          <h3 className="text-lg font-bold mb-4">Buy Shares</h3>
-          <div className="flex gap-3">
+        <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
+          <div style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px', marginBottom: '14px' }}>BUY SHARES</div>
+          <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '14px' }}>
+            <button style={tabStyle(buyMode === 'cr')} onClick={() => { setBuyMode('cr'); setBuyInput('') }}>Invest by CR amount</button>
+            <button style={tabStyle(buyMode === 'shares')} onClick={() => { setBuyMode('shares'); setBuyInput('') }}>Invest by share count</button>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
             <input
               type="number"
               min="1"
-              value={buyAmount}
-              onChange={e => setBuyAmount(e.target.value)}
-              className="w-24 bg-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-green-400"
+              step={buyMode === 'cr' ? '1' : 'any'}
+              placeholder={buyMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
+              value={buyInput}
+              onChange={e => handleBuyInput(e.target.value)}
+              style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', padding: '11px 16px', color: '#fff', fontSize: '14px', outline: 'none' }}
             />
-            <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400 flex items-baseline gap-1">
-              Cost: <span className="text-white font-bold ml-1">{(buyAmount * price).toLocaleString()}</span>
-              <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
-            </div>
-            <button onClick={buyShares} className="bg-green-400 text-black font-bold px-6 py-3 rounded-xl hover:bg-green-300 transition">
+            <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '13px', fontWeight: '500', padding: '11px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Buy
             </button>
           </div>
+          {buyInput > 0 && (
+            <div style={{ color: '#555', fontSize: '12px' }}>
+              ≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR
+            </div>
+          )}
         </div>
 
         {/* Sell */}
         {holding && (
-          <div className="bg-gray-900 rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-4">Sell Shares</h3>
-            <div className="flex gap-3">
+          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px' }}>SELL SHARES</div>
+              <button
+                onClick={() => sellShares(true)}
+                style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '11px', fontWeight: '500', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Sell All
+              </button>
+            </div>
+            <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '14px' }}>
+              <button style={tabStyle(sellMode === 'cr')} onClick={() => { setSellMode('cr'); setSellInput('') }}>Sell by CR amount</button>
+              <button style={tabStyle(sellMode === 'shares')} onClick={() => { setSellMode('shares'); setSellInput('') }}>Sell by share count</button>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
               <input
                 type="number"
-                min="1"
-                max={holding.shares}
-                value={sellAmount}
-                onChange={e => setSellAmount(e.target.value)}
-                className="w-24 bg-gray-800 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-green-400"
+                min="0"
+                step={sellMode === 'cr' ? '1' : 'any'}
+                placeholder={sellMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
+                value={sellInput}
+                onChange={e => handleSellInput(e.target.value)}
+                style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', padding: '11px 16px', color: '#fff', fontSize: '14px', outline: 'none' }}
               />
-              <div className="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-gray-400 flex items-baseline gap-1">
-                Return: <span className="text-white font-bold ml-1">{(sellAmount * price).toLocaleString()}</span>
-                <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>CR</span>
-              </div>
-              <button onClick={sellShares} className="bg-red-500 text-white font-bold px-6 py-3 rounded-xl hover:bg-red-400 transition">
+              <button onClick={() => sellShares(false)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '13px', fontWeight: '500', padding: '11px 24px', borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 Sell
               </button>
+            </div>
+            {sellInput > 0 && (
+              <div style={{ color: '#555', fontSize: '12px' }}>
+                ≈ {getSellShares().toFixed(2)} shares · receive {getSellReturn().toLocaleString()} CR
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              {[25, 50, 75, 100].map(pct => (
+                <button
+                  key={pct}
+                  onClick={() => {
+                    if (pct === 100) { sellShares(true); return }
+                    const sharesToSell = holding.shares * (pct / 100)
+                    setSellMode('shares')
+                    setSellInput(sharesToSell.toFixed(4))
+                  }}
+                  style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '11px', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  {pct}%
+                </button>
+              ))}
             </div>
           </div>
         )}
