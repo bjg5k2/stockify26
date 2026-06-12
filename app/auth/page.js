@@ -28,7 +28,7 @@ export default function AuthPage() {
           .single()
 
         if (lookupError || !data) {
-          setError('No account found with that username.')
+          setError(`Debug: lookup error - ${lookupError?.message || 'no data found'} for username: "${loginInput}"`)
           setLoading(false)
           return
         }
@@ -39,7 +39,7 @@ export default function AuthPage() {
         console.log('userData:', userData, 'userError:', userError)
 
         if (userError || userData === null) {
-          setError('Could not find account. Try logging in with your email instead.')
+          setError(`Debug: email lookup failed - ${userError?.message || 'null result'}`)
           setLoading(false)
           return
         }
