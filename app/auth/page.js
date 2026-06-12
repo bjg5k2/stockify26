@@ -28,7 +28,7 @@ export default function AuthPage() {
           .single()
 
         if (lookupError || !data) {
-          setError(`Debug: lookup error - ${lookupError?.message || 'no data found'} for username: "${loginInput}"`)
+          setError('No account found with that username.')
           setLoading(false)
           return
         }
@@ -36,10 +36,8 @@ export default function AuthPage() {
         const { data: userData, error: userError } = await supabase
           .rpc('get_email_by_id', { user_id: data.id })
 
-        console.log('userData:', userData, 'userError:', userError)
-
         if (userError || userData === null) {
-          setError(`Debug: email lookup failed - ${userError?.message || 'null result'}`)
+          setError('Could not find account. Try logging in with your email instead.')
           setLoading(false)
           return
         }
