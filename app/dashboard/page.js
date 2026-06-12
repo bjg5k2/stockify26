@@ -1,70 +1,14 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-
-function PerformanceChart({ totalValue, startValue }) {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    const W = canvas.width
-    const H = canvas.height
-    ctx.clearRect(0, 0, W, H)
-
-    const start = startValue || 1000
-    const end = totalValue || 1000
-    const points = 9
-    const data = Array.from({ length: points }, (_, i) => {
-      const progress = i / (points - 1)
-      const noise = (Math.random() - 0.4) * Math.abs(end - start) * 0.15
-      return start + (end - start) * progress + (i > 0 && i < points - 1 ? noise : 0)
-    })
-    data[0] = start
-    data[points - 1] = end
-
-    const min = Math.min(...data) * 0.95
-    const max = Math.max(...data) * 1.05
-    const pts = data.map((v, i) => ({
-      x: (i / (data.length - 1)) * W,
-      y: H - ((v - min) / (max - min)) * H
-    }))
-
-    const up = end >= start
-    const color = up ? '#4ade80' : '#f87171'
-    const fillColor = up ? 'rgba(74,222,128,0.07)' : 'rgba(248,113,113,0.07)'
-
-    ctx.beginPath()
-    ctx.moveTo(pts[0].x, H)
-    pts.forEach(p => ctx.lineTo(p.x, p.y))
-    ctx.lineTo(pts[pts.length - 1].x, H)
-    ctx.closePath()
-    ctx.fillStyle = fillColor
-    ctx.fill()
-
-    ctx.beginPath()
-    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y))
-    ctx.strokeStyle = color
-    ctx.lineWidth = 2
-    ctx.lineJoin = 'round'
-    ctx.stroke()
-
-    const last = pts[pts.length - 1]
-    ctx.beginPath()
-    ctx.arc(last.x, last.y, 4, 0, Math.PI * 2)
-    ctx.fillStyle = color
-    ctx.fill()
-  }, [totalValue, startValue])
-
-  return <canvas ref={canvasRef} width={600} height={110} style={{ width: '100%', height: '110px' }} />
-}
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 export default function Dashboard() {
   const [profile, setProfile] = useState(null)
   const [holdings, setHoldings] = useState([])
   const [artistData, setArtistData] = useState({})
+  const [snapshots, setSnapshots] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -81,6 +25,13 @@ export default function Dashboard() {
         .from('holdings').select('*').eq('user_id', user.id)
       setHoldings(holdingsData || [])
 
+      const { data: snapshotData } = await supabase
+        .from('portfolio_snapshots')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('snapshot_date', { ascending: true })
+      setSnapshots(snapshotData || [])
+
       const artistMap = {}
       await Promise.all(
         (holdingsData || []).map(async (h) => {
@@ -96,9 +47,7 @@ export default function Dashboard() {
   }, [])
 
   const getPrice = (artist) => {
-    const followers = artist.followers
-    const popularity = artist.popularity
-    return Math.round(Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200))
+    return Math.round(Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200))
   }
 
   const getTotalValue = () => holdings.reduce((total, h) => {
@@ -132,8 +81,24 @@ export default function Dashboard() {
   const totalPL = totalValue - totalInvested
   const netWorth = (profile?.credits || 0) + totalValue
   const initials = profile?.username?.slice(0, 2).toUpperCase() || 'U'
-  const allTimeChange = totalInvested > 0 ? (((totalValue - totalInvested) / totalInvested) * 100).toFixed(1) : '0.0'
-  const startValue = profile?.credits || 1000
+
+  const firstSnapshot = snapshots[0]
+  const firstNetWorth = firstSnapshot ? (firstSnapshot.total_value || 0) + (firstSnapshot.credits || 0) : 1000
+  const allTimeChange = firstNetWorth > 0 ? (((netWorth - firstNetWorth) / firstNetWorth) * 100).toFixed(1) : '0.0'
+  const up = parseFloat(allTimeChange) >= 0
+
+  // Build chart data from real snapshots + current value
+  const chartData = [
+    ...snapshots.map(s => ({
+      date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+      value: Math.round((s.total_value || 0) + (s.credits || 0))
+    })),
+    { date: 'Now', value: Math.round(netWorth) }
+  ]
+
+  if (chartData.length < 2) {
+    chartData.unshift({ date: 'Start', value: 1000 })
+  }
 
   return (
     <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff' }}>
@@ -170,16 +135,36 @@ export default function Dashboard() {
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <span style={{ color: '#888', fontSize: '12px', fontWeight: '500' }}>{profile?.username}'s portfolio</span>
-              <span style={{ color: totalPL >= 0 ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: '500' }}>
-                {totalPL >= 0 ? '▲' : '▼'} {allTimeChange}% all time
+              <span style={{ color: up ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: '500' }}>
+                {up ? '▲' : '▼'} {Math.abs(allTimeChange)}% all time
               </span>
             </div>
-            <PerformanceChart totalValue={netWorth} startValue={startValue} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-              {['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Today'].map(l => (
-                <span key={l} style={{ color: '#333', fontSize: '10px' }}>{l}</span>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={110}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={up ? '#4ade80' : '#f87171'} stopOpacity={0.15} />
+                    <stop offset="95%" stopColor={up ? '#4ade80' : '#f87171'} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fill: '#333', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis hide={true} domain={['auto', 'auto']} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                  formatter={(val) => [`${val.toLocaleString()} CR`, 'Net worth']}
+                  labelStyle={{ color: '#555' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={up ? '#4ade80' : '#f87171'}
+                  strokeWidth={2}
+                  fill="url(#colorValue)"
+                  dot={{ fill: up ? '#4ade80' : '#f87171', r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Metrics */}
@@ -250,8 +235,6 @@ export default function Dashboard() {
 
         {/* Sidebar */}
         <div style={{ padding: '24px 20px' }}>
-
-          {/* Account Summary */}
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
             <div style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px', marginBottom: '12px' }}>ACCOUNT SUMMARY</div>
             {[
@@ -267,7 +250,6 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Trending */}
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
             <div style={{ color: '#888', fontSize: '10px', letterSpacing: '0.5px', marginBottom: '12px' }}>TRENDING TODAY</div>
             {[
