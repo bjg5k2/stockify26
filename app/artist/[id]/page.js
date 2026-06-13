@@ -13,6 +13,7 @@ export default function ArtistPage() {
   const [topInvestors, setTopInvestors] = useState([])
   const [totalInvestors, setTotalInvestors] = useState(0)
   const [bio, setBio] = useState(null)
+  const [tradeType, setTradeType] = useState('buy')
   const [buyMode, setBuyMode] = useState('cr')
   const [sellMode, setSellMode] = useState('cr')
   const [buyInput, setBuyInput] = useState('')
@@ -349,57 +350,93 @@ export default function ArtistPage() {
             </div>
           )}
 
-          {/* Buy */}
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '12px' }}>
-            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '12px' }}>BUY SHARES</div>
-            <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '12px' }}>
-              <button style={tabStyle(buyMode === 'cr')} onClick={() => { setBuyMode('cr'); setBuyInput('') }}>Invest by CR amount</button>
-              <button style={tabStyle(buyMode === 'shares')} onClick={() => { setBuyMode('shares'); setBuyInput('') }}>Invest by share count</button>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-              <input type="number" min="1" step={buyMode === 'cr' ? '1' : 'any'}
-                placeholder={buyMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
-                value={buyInput} onChange={e => handleBuyInput(e.target.value)}
-                style={inputStyle} />
-              <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
-            </div>
-            {buyInput > 0 && <div style={{ color: '#555', fontSize: '12px' }}>≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR</div>}
-          </div>
+          {/* Trade Panel */}
+          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
 
-          {/* Sell */}
-          {holding && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px' }}>SELL SHARES</div>
-                <button onClick={() => sellShares(true)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '11px', fontWeight: '500', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer' }}>Sell All</button>
-              </div>
-              <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '12px' }}>
-                <button style={tabStyle(sellMode === 'cr')} onClick={() => { setSellMode('cr'); setSellInput('') }}>Sell by CR amount</button>
-                <button style={tabStyle(sellMode === 'shares')} onClick={() => { setSellMode('shares'); setSellInput('') }}>Sell by share count</button>
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                <input type="number" min="0" step={sellMode === 'cr' ? '1' : 'any'}
-                  placeholder={sellMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
-                  value={sellInput} onChange={e => handleSellInput(e.target.value)}
-                  style={inputStyle} />
-                <button onClick={() => sellShares(false)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', cursor: 'pointer' }}>Sell</button>
-              </div>
-              {sellInput > 0 && <div style={{ color: '#555', fontSize: '12px', marginBottom: '10px' }}>≈ {getSellShares().toFixed(2)} shares · receive {getSellReturn().toLocaleString()} CR</div>}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {[25, 50, 75, 100].map(pct => (
-                  <button key={pct}
-                    onClick={() => {
-                      if (pct === 100) { sellShares(true); return }
-                      setSellMode('shares')
-                      setSellInput((holding.shares * (pct / 100)).toFixed(4))
-                    }}
-                    style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '12px', padding: '7px', borderRadius: '6px', cursor: 'pointer' }}>
-                    {pct}%
-                  </button>
-                ))}
-              </div>
+            {/* Buy / Sell toggle */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button
+                onClick={() => setTradeType('buy')}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px',
+                  border: tradeType === 'buy' ? '1px solid #4ade80' : '0.5px solid #1a4a2a',
+                  background: '#0f2a18',
+                  color: '#4ade80',
+                  fontSize: '14px', fontWeight: '500', cursor: 'pointer',
+                  opacity: tradeType === 'buy' ? 1 : 0.6
+                }}
+              >
+                Buy
+              </button>
+              <button
+                onClick={() => holding && setTradeType('sell')}
+                disabled={!holding}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px',
+                  border: tradeType === 'sell' ? '1px solid #f87171' : '0.5px solid #3a1a1a',
+                  background: '#1a0a0a',
+                  color: '#f87171',
+                  fontSize: '14px', fontWeight: '500',
+                  cursor: holding ? 'pointer' : 'not-allowed',
+                  opacity: !holding ? 0.35 : tradeType === 'sell' ? 1 : 0.6
+                }}
+              >
+                Sell
+              </button>
             </div>
-          )}
+
+            {/* Buy form */}
+            {tradeType === 'buy' && (
+              <>
+                <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '12px' }}>
+                  <button style={tabStyle(buyMode === 'cr')} onClick={() => { setBuyMode('cr'); setBuyInput('') }}>Invest by CR amount</button>
+                  <button style={tabStyle(buyMode === 'shares')} onClick={() => { setBuyMode('shares'); setBuyInput('') }}>Invest by share count</button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                  <input type="number" min="1" step={buyMode === 'cr' ? '1' : 'any'}
+                    placeholder={buyMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
+                    value={buyInput} onChange={e => handleBuyInput(e.target.value)}
+                    style={inputStyle} />
+                  <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
+                </div>
+                {buyInput > 0 && <div style={{ color: '#555', fontSize: '12px' }}>≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR</div>}
+              </>
+            )}
+
+            {/* Sell form */}
+            {tradeType === 'sell' && holding && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                  <button onClick={() => sellShares(true)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '11px', fontWeight: '500', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer' }}>Sell All</button>
+                </div>
+                <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '12px' }}>
+                  <button style={tabStyle(sellMode === 'cr')} onClick={() => { setSellMode('cr'); setSellInput('') }}>Sell by CR amount</button>
+                  <button style={tabStyle(sellMode === 'shares')} onClick={() => { setSellMode('shares'); setSellInput('') }}>Sell by share count</button>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                  <input type="number" min="0" step={sellMode === 'cr' ? '1' : 'any'}
+                    placeholder={sellMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
+                    value={sellInput} onChange={e => handleSellInput(e.target.value)}
+                    style={inputStyle} />
+                  <button onClick={() => sellShares(false)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', cursor: 'pointer' }}>Sell</button>
+                </div>
+                {sellInput > 0 && <div style={{ color: '#555', fontSize: '12px', marginBottom: '10px' }}>≈ {getSellShares().toFixed(2)} shares · receive {getSellReturn().toLocaleString()} CR</div>}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[25, 50, 75, 100].map(pct => (
+                    <button key={pct}
+                      onClick={() => {
+                        if (pct === 100) { sellShares(true); return }
+                        setSellMode('shares')
+                        setSellInput((holding.shares * (pct / 100)).toFixed(4))
+                      }}
+                      style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '12px', padding: '7px', borderRadius: '6px', cursor: 'pointer' }}>
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Trade History */}
           {transactions.length > 0 && (
@@ -450,7 +487,7 @@ export default function ArtistPage() {
           {bio && (
             <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ABOUT</div>
-              <p style={{ color: '#666', fontSize: '13px', lineHeight: '1.7' }}>{bio}</p>
+              <p style={{ color: '#fff', fontSize: '13px', lineHeight: '1.7' }}>{bio}</p>
             </div>
           )}
 

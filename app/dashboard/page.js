@@ -49,7 +49,7 @@ export default function Dashboard() {
   }, [])
 
   const getPrice = (artist) => {
-    return Math.round(Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200))
+    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
   }
 
   const getTotalValue = () => holdings.reduce((total, h) => {
@@ -129,6 +129,14 @@ export default function Dashboard() {
   ]
   if (chartData.length < 2) chartData.unshift({ date: 'Start', value: 1000 })
 
+  // Calculate Y-axis domain so the chart zooms into the actual price range
+  const chartValues = chartData.map(d => d.value)
+  const chartMin = Math.min(...chartValues)
+  const chartMax = Math.max(...chartValues)
+  const chartRange = chartMax - chartMin
+  const chartPadding = chartRange === 0 ? chartMax * 0.05 : chartRange * 0.1
+  const yDomain = [Math.max(0, chartMin - chartPadding), chartMax + chartPadding]
+
   const sortedHoldings = getSortedHoldings()
 
   const getSortLabel = (key, labels) => {
@@ -194,7 +202,7 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="date" tick={{ fill: '#444', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis hide={true} domain={['auto', 'auto']} />
+                <YAxis hide={true} domain={yDomain} />
                 <Tooltip
                   contentStyle={{ background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
                   formatter={(val) => [`${val.toLocaleString()} CR`, 'Net worth']}
