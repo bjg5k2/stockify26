@@ -205,6 +205,17 @@ export default function ArtistPage() {
   const plPct = avgPrice > 0 ? (((price - avgPrice) / avgPrice) * 100).toFixed(1) : '0.0'
   const chartUp = priceHistory.length < 2 || priceHistory[priceHistory.length - 1]?.price >= priceHistory[0]?.price
 
+  // Calculate Y-axis domain so the chart zooms into the actual price range
+  let priceYDomain = ['auto', 'auto']
+  if (priceHistory.length >= 2) {
+    const prices = priceHistory.map(d => d.price)
+    const pMin = Math.min(...prices)
+    const pMax = Math.max(...prices)
+    const pRange = pMax - pMin
+    const pPadding = pRange === 0 ? pMax * 0.05 : pRange * 0.1
+    priceYDomain = [Math.max(0, pMin - pPadding), pMax + pPadding]
+  }
+
   const tabStyle = (active) => ({
     flex: 1, padding: '8px', borderRadius: '6px', border: 'none', cursor: 'pointer',
     fontSize: '13px', fontWeight: '500',
@@ -298,7 +309,7 @@ export default function ArtistPage() {
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="date" tick={{ fill: '#444', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis hide domain={['auto', 'auto']} />
+                    <YAxis hide domain={priceYDomain} />
                     <Tooltip
                       contentStyle={{ background: '#1a1a1a', border: '0.5px solid #2a2a2a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                       formatter={(val) => [`${val.toLocaleString()} CR`, 'Price']}
