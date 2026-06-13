@@ -88,7 +88,7 @@ export default function ArtistPage() {
 
   const showMessage = (text, success = true) => {
     setMessage({ text, success })
-    setTimeout(() => setMessage({ text: '', success: true }), 3000)
+    setTimeout(() => setMessage({ text: '', success: true }), 4000)
   }
 
   const handleBuyInput = (val) => setBuyInput(Math.floor(Math.abs(val)) || '')
@@ -140,6 +140,16 @@ export default function ArtistPage() {
     if (!shares || shares <= 0) { showMessage('Enter a valid amount.', false); return }
     if (cost > profile.credits) { showMessage('Not enough credits!', false); return }
     const { data: { user } } = await supabase.auth.getUser()
+
+    let isFirstInvestor = false
+    if (!holding) {
+      const { count } = await supabase
+        .from('holdings')
+        .select('*', { count: 'exact', head: true })
+        .eq('artist_id', artist.id)
+      if (count === 0) isFirstInvestor = true
+    }
+
     if (holding) {
       await supabase.from('holdings').update({ shares: holding.shares + shares }).eq('id', holding.id)
       setHolding({ ...holding, shares: holding.shares + shares })
@@ -154,10 +164,26 @@ export default function ArtistPage() {
       type: 'buy', shares, price_per_share: price, total: cost
     }).select().single()
     setTransactions([tx, ...transactions])
-    await supabase.from('profiles').update({ credits: profile.credits - cost }).eq('id', user.id)
-    setProfile({ ...profile, credits: profile.credits - cost })
+
+    let bonus = 0
+    if (isFirstInvestor) {
+      bonus = 500
+      await supabase.from('badges').insert({
+        user_id: user.id, badge_type: 'first_investor', artist_id: artist.id, artist_name: artist.name
+      })
+      setTotalInvestors(prev => prev + 1)
+    }
+
+    const newCredits = profile.credits - cost + bonus
+    await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
+    setProfile({ ...profile, credits: newCredits })
     setBuyInput('')
-    showMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
+
+    if (isFirstInvestor) {
+      showMessage(`🏆 First Investor! Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR + 500 CR bonus!`)
+    } else {
+      showMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
+    }
   }
 
   const sellShares = async (sellAll = false) => {
@@ -205,7 +231,6 @@ export default function ArtistPage() {
   const plPct = avgPrice > 0 ? (((price - avgPrice) / avgPrice) * 100).toFixed(1) : '0.0'
   const chartUp = priceHistory.length < 2 || priceHistory[priceHistory.length - 1]?.price >= priceHistory[0]?.price
 
-  // Calculate Y-axis domain so the chart zooms into the actual price range
   let priceYDomain = ['auto', 'auto']
   if (priceHistory.length >= 2) {
     const prices = priceHistory.map(d => d.price)
@@ -411,6 +436,11 @@ export default function ArtistPage() {
                   <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
                 </div>
                 {buyInput > 0 && <div style={{ color: '#555', fontSize: '12px' }}>≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR</div>}
+                <div style={{ color: totalInvestors === 0 ? '#fbbf24' : '#555', fontSize: '12px', marginTop: '8px' }}>
+                  {totalInvestors === 0
+                    ? `🏆 Be the first to invest in ${artist.name} and earn a badge + 500 CR bonus!`
+                    : `${totalInvestors} user${totalInvestors !== 1 ? 's' : ''} invested`}
+                </div>
               </>
             )}
 
