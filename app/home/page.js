@@ -12,6 +12,56 @@ const ARTIST_POOL = [
   { id: '6yJCxee7QumYr820xdIsjo', name: 'Zach Top' },
 ]
 
+const CHALLENGES = [
+  {
+    type: 'three_artists',
+    description: 'Invest in 3 or more different artists today',
+    reward: 100,
+    check: async (ctx) => new Set(ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id)).size >= 3,
+  },
+  {
+    type: 'three_trades',
+    description: 'Make 3 or more trades today',
+    reward: 50,
+    check: async (ctx) => ctx.todayTx.length >= 3,
+  },
+  {
+    type: 'new_artist',
+    description: "Invest in an artist you haven't before",
+    reward: 75,
+    check: async (ctx) => {
+      const todayBuyIds = ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id)
+      return todayBuyIds.some(id => !ctx.priorArtistIds.has(id))
+    },
+  },
+  {
+    type: 'bargain',
+    description: 'Invest in an artist priced under 500 CR',
+    reward: 50,
+    check: async (ctx) => ctx.todayTx.some(t => t.type === 'buy' && t.price_per_share < 500),
+  },
+  {
+    type: 'underdog',
+    description: 'Invest in an artist with under 100K followers',
+    reward: 125,
+    check: async (ctx) => {
+      const ids = [...new Set(ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id))]
+      for (const id of ids) {
+        const res = await fetch(`/api/artist?id=${id}`)
+        const data = await res.json()
+        if (data.artist && data.artist.followers < 100000) return true
+      }
+      return false
+    },
+  },
+  {
+    type: 'first_investor_today',
+    description: 'Be the first investor in an artist',
+    reward: 100,
+    check: async (ctx) => ctx.firstInvestorToday,
+  },
+]
+
 function timeAgo(dateStr) {
   const date = new Date(dateStr)
   const now = new Date()
@@ -30,10 +80,12 @@ export default function HomePage() {
   const [myProfile, setMyProfile] = useState(null)
   const [artistOfDay, setArtistOfDay] = useState(null)
   const [bio, setBio] = useState(null)
+  const [aodStats, setAodStats] = useState({ investors: 0, totalInvested: 0, firstInvestor: null, priceChangePct: null })
   const [stats, setStats] = useState({ totalInvested: 0, totalUsers: 0, totalBadges: 0, totalArtists: 0 })
   const [winner, setWinner] = useState(null)
   const [loser, setLoser] = useState(null)
   const [feed, setFeed] = useState([])
+  const [dailyChallenges, setDailyChallenges] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -64,6 +116,105 @@ export default function HomePage() {
         const bioData = await bioRes.json()
         setBio(bioData.bio)
       }
+
+      // Artist of the Day stats: investors, total invested, first investor, price change
+      const { data: aodHoldings } = await supabase
+        .from('holdings').select('user_id, shares, buy_price').eq('artist_id', pick.id)
+      const realAodHoldings = (aodHoldings || []).filter(h => !adminIds.includes(h.user_id))
+      const aodInvestors = realAodHoldings.length
+      const aodTotalInvested = realAodHoldings.reduce((sum, h) => sum + h.shares * h.buy_price, 0)
+
+      let firstInvestorUsername = null
+      const { data: firstBadge } = await supabase
+        .from('badges').select('user_id').eq('artist_id', pick.id).eq('badge_type', 'first_investor').maybeSingle()
+      if (firstBadge) {
+        const { data: p } = await supabase.from('profiles').select('username').eq('id', firstBadge.user_id).single()
+        firstInvestorUsername = p?.username || null
+      }
+
+      const { data: aodSnaps } = await supabase
+        .from('artist_snapshots').select('*').eq('artist_id', pick.id)
+        .order('snapshot_date', { ascending: true })
+      let priceChangePct = null
+      if (aodSnaps && aodSnaps.length >= 2) {
+        const getP = (s) => {
+          const pop = s.popularity ?? 91
+          return Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
+        }
+        const firstPrice = getP(aodSnaps[0])
+        const lastPrice = getP(aodSnaps[aodSnaps.length - 1])
+        priceChangePct = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0
+      }
+
+      setAodStats({
+        investors: aodInvestors,
+        totalInvested: aodTotalInvested,
+        firstInvestor: firstInvestorUsername,
+        priceChangePct,
+      })
+
+      // Daily Challenges — rotate 3 of 6, overlapping windows
+      const todaysChallenges = [0, 1, 2].map(i => CHALLENGES[(dayOfYear + i) % CHALLENGES.length])
+      const todayStr = new Date().toISOString().split('T')[0]
+      const startOfDay = new Date()
+      startOfDay.setHours(0, 0, 0, 0)
+
+      const { data: todayTx } = await supabase
+        .from('transactions').select('*').eq('user_id', user.id)
+        .gte('created_at', startOfDay.toISOString())
+
+      let priorArtistIds = new Set()
+      if (todaysChallenges.some(c => c.type === 'new_artist')) {
+        const { data: priorTx } = await supabase
+          .from('transactions').select('artist_id').eq('user_id', user.id)
+          .lt('created_at', startOfDay.toISOString())
+        priorArtistIds = new Set((priorTx || []).map(t => t.artist_id))
+      }
+
+      let firstInvestorToday = false
+      if (todaysChallenges.some(c => c.type === 'first_investor_today')) {
+        const { data: todayBadges } = await supabase
+          .from('badges').select('id').eq('user_id', user.id).eq('badge_type', 'first_investor')
+          .gte('awarded_at', startOfDay.toISOString())
+        firstInvestorToday = (todayBadges || []).length > 0
+      }
+
+      const ctx = { todayTx: todayTx || [], priorArtistIds, firstInvestorToday }
+
+      let currentCredits = myProfileData.credits || 0
+      const resolvedChallenges = []
+      for (const challenge of todaysChallenges) {
+        const { data: existing } = await supabase
+          .from('daily_challenge_completions').select('*')
+          .eq('user_id', user.id).eq('completion_date', todayStr).eq('challenge_type', challenge.type)
+          .maybeSingle()
+
+        if (existing) {
+          resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: existing.reward })
+          continue
+        }
+
+        const met = await challenge.check(ctx)
+        if (met) {
+          try {
+            await supabase.from('daily_challenge_completions').insert({
+              user_id: user.id, completion_date: todayStr, challenge_type: challenge.type, reward: challenge.reward,
+            })
+            currentCredits += challenge.reward
+            resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: challenge.reward })
+          } catch {
+            resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: challenge.reward })
+          }
+        } else {
+          resolvedChallenges.push({ ...challenge, completed: false, rewardEarned: 0 })
+        }
+      }
+
+      if (currentCredits !== (myProfileData.credits || 0)) {
+        await supabase.from('profiles').update({ credits: currentCredits }).eq('id', user.id)
+        setMyProfile({ ...myProfileData, credits: currentCredits })
+      }
+      setDailyChallenges(resolvedChallenges)
 
       const { data: allProfiles } = await supabase.from('profiles').select('id, is_admin')
       const { data: allHoldings } = await supabase.from('holdings').select('artist_id, shares, buy_price')
@@ -116,7 +267,6 @@ export default function HomePage() {
         }
       }
 
-      // Global Activity Feed — exclude admin
       const { data: txData } = await supabase
         .from('transactions').select('*')
         .order('created_at', { ascending: false }).limit(20)
@@ -173,11 +323,21 @@ export default function HomePage() {
   const myInitials = myProfile?.username?.slice(0, 2).toUpperCase() || 'U'
   const aodPrice = artistOfDay ? getPrice(artistOfDay) : null
 
+  const clampStyle = (lines) => ({
+    display: '-webkit-box',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: lines,
+    overflow: 'hidden',
+  })
+
+  const CARD_HEIGHT = '660px'
+  const MOVER_HEIGHT = '380px'
+
   return (
-    <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
-      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Home</span>
@@ -194,28 +354,45 @@ export default function HomePage() {
       </nav>
 
       {/* Main 3-column grid: 20% / 60% / 20% */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '20px', padding: '24px 48px', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '20px', padding: '24px 48px' }}>
 
         {/* Col 1 (20%): Artist of the Day */}
         {artistOfDay && (
           <div
             onClick={() => router.push(`/artist/${artistOfDay.id}`)}
-            style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: '100%', background: '#111' }}
+            style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: CARD_HEIGHT, background: '#111', display: 'flex', flexDirection: 'column' }}
           >
             {artistOfDay.image && (
               <img src={artistOfDay.image} alt={artistOfDay.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }} />
             )}
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.97) 30%, rgba(10,10,10,0.3) 100%)' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,10,10,0.97) 35%, rgba(10,10,10,0.3) 100%)' }} />
             <div style={{ position: 'absolute', top: '12px', left: '12px', background: 'rgba(0,0,0,0.6)', color: '#fbbf24', fontSize: '11px', fontWeight: '600', letterSpacing: '1px', padding: '4px 10px', borderRadius: '6px' }}>⭐ ARTIST OF THE DAY</div>
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '18px' }}>
-              <h1 style={{ color: '#fff', fontSize: '22px', fontWeight: '600', letterSpacing: '-0.5px', marginBottom: '8px' }}>{artistOfDay.name}</h1>
-              {bio && <p style={{ color: '#fff', fontSize: '12px', lineHeight: '1.6', marginBottom: '14px' }}>{bio.length > 140 ? bio.slice(0, 140) + '...' : bio}</p>}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div>
-                  <span style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>{aodPrice?.toLocaleString()}</span>
-                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}> CR / share</span>
+            <div style={{ position: 'relative', marginTop: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h1 style={{ color: '#fff', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.5px' }}>{artistOfDay.name}</h1>
+              {bio && <p style={{ color: '#fff', fontSize: '12px', lineHeight: '1.5', ...clampStyle(3) }}>{bio}</p>}
+
+              {/* Stats grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px', color: '#ccc', padding: '8px 0', borderTop: '0.5px solid rgba(255,255,255,0.08)', borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+                <div>👥 {aodStats.investors} investor{aodStats.investors !== 1 ? 's' : ''}</div>
+                <div>💰 {Math.round(aodStats.totalInvested).toLocaleString()} CR invested</div>
+                <div style={{ gridColumn: 'span 2', color: aodStats.firstInvestor ? '#fbbf24' : '#888' }}>
+                  {aodStats.firstInvestor ? `🏆 First investor: @${aodStats.firstInvestor}` : '🏆 No investors yet — be the first!'}
                 </div>
-                <button style={{ background: '#4ade80', color: '#000', fontSize: '13px', fontWeight: '500', padding: '9px 18px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                <div>
+                  <div>
+                    <span style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>{aodPrice?.toLocaleString()}</span>
+                    <span style={{ color: '#4ade80', fontSize: '11px', fontWeight: '500' }}> CR</span>
+                  </div>
+                  {aodStats.priceChangePct !== null && (
+                    <div style={{ color: aodStats.priceChangePct >= 0 ? '#4ade80' : '#f87171', fontSize: '11px', fontWeight: '500', marginTop: '2px' }}>
+                      {aodStats.priceChangePct >= 0 ? '▲' : '▼'} {Math.abs(aodStats.priceChangePct).toFixed(1)}% since tracking
+                    </div>
+                  )}
+                </div>
+                <button style={{ background: '#4ade80', color: '#000', fontSize: '12px', fontWeight: '500', padding: '8px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
                   View & Invest
                 </button>
               </div>
@@ -223,8 +400,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Col 2 (60%): Stats + Heating Up / Cooling Off side by side */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflow: 'hidden' }}>
+        {/* Col 2 (60%): Stats + Daily Challenges + Heating Up / Cooling Off */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
           {/* Platform Stats row of 4 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
@@ -241,12 +418,30 @@ export default function HomePage() {
             ))}
           </div>
 
+          {/* Daily Challenges */}
+          {dailyChallenges.length > 0 && (
+            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '14px 18px' }}>
+              <div style={{ color: '#888', fontSize: '10px', letterSpacing: '1px', marginBottom: '10px' }}>DAILY CHALLENGES</div>
+              {dailyChallenges.map((c, i) => (
+                <div key={c.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < dailyChallenges.length - 1 ? '0.5px solid #141414' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ fontSize: '16px' }}>{c.completed ? '✅' : '🎯'}</div>
+                    <div style={{ color: '#fff', fontSize: '13px' }}>{c.description}</div>
+                  </div>
+                  <div style={{ color: c.completed ? '#4ade80' : '#fbbf24', fontSize: '12px', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                    {c.completed ? `+${c.rewardEarned} CR` : `+${c.reward} CR`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Heating Up / Cooling Off side by side */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', flex: 1, minHeight: 0 }}>
-            {winner && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            {winner ? (
               <div
                 onClick={() => router.push(`/artist/${winner.artist_id}`)}
-                style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: '100%', background: '#111' }}
+                style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: MOVER_HEIGHT, background: '#111' }}
               >
                 {winner.image && (
                   <img src={winner.image} alt={winner.artist_name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
@@ -261,12 +456,16 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+            ) : (
+              <div style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
+                Not enough data yet for Heating Up
+              </div>
             )}
 
-            {loser && (
+            {loser ? (
               <div
                 onClick={() => router.push(`/artist/${loser.artist_id}`)}
-                style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: '100%', background: '#111' }}
+                style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: MOVER_HEIGHT, background: '#111' }}
               >
                 {loser.image && (
                   <img src={loser.image} alt={loser.artist_name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.7 }} />
@@ -283,12 +482,16 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
+            ) : (
+              <div style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
+                Not enough data yet for Cooling Off
+              </div>
             )}
           </div>
         </div>
 
         {/* Col 3 (20%): Live Activity Feed */}
-        <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '14px', padding: '18px', height: '100%', overflow: 'auto' }}>
+        <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '14px', padding: '18px', height: CARD_HEIGHT, overflow: 'auto' }}>
           <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px', marginBottom: '14px' }}>LIVE ACTIVITY</div>
           {feed.length === 0 ? (
             <p style={{ color: '#444', fontSize: '13px' }}>No activity yet.</p>
