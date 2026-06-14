@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../components/FX'
 
 export default function Dashboard() {
   const [profile, setProfile] = useState(null)
@@ -253,13 +254,37 @@ export default function Dashboard() {
     showTradeMessage(`Sold ${sharesToSell.toFixed(2)} shares for ${returnAmount.toLocaleString()} CR!`)
   }
 
+  const totalValue = getTotalValue()
+  const flashClass = useFlash(Math.round(totalValue))
+
   if (loading) return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      <p style={{ color: '#555' }}>Loading...</p>
+    <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
+      </nav>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0 }}>
+        <div style={{ padding: '32px 48px' }}>
+          <Skeleton width="240px" height="20px" borderRadius="6px" />
+          <div style={{ marginTop: '12px' }}><Skeleton width="320px" height="52px" borderRadius="8px" /></div>
+          <div style={{ marginTop: '20px' }}><Skeleton height="180px" borderRadius="12px" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '20px' }}>
+            {[1, 2, 3].map(i => <Skeleton key={i} height="76px" borderRadius="12px" />)}
+          </div>
+          <div style={{ marginTop: '28px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[1, 2, 3].map(i => <Skeleton key={i} height="64px" borderRadius="10px" />)}
+          </div>
+        </div>
+        <div style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Skeleton height="200px" borderRadius="12px" />
+          <Skeleton height="200px" borderRadius="12px" />
+        </div>
+      </div>
     </main>
   )
 
-  const totalValue = getTotalValue()
   const totalInvested = getTotalInvested()
   const totalPL = totalValue - totalInvested
   const netWorth = (profile?.credits || 0) + totalValue
@@ -326,7 +351,10 @@ export default function Dashboard() {
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div onClick={() => router.push('/home')} style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px', cursor: 'pointer' }}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Portfolio</span>
@@ -348,8 +376,8 @@ export default function Dashboard() {
         <div style={{ padding: '32px 48px', borderRight: '0.5px solid #141414', overflow: 'auto' }}>
 
           <div style={{ color: '#555', fontSize: '11px', letterSpacing: '1px', marginBottom: '12px' }}>PORTFOLIO OVERVIEW</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
-            <span style={{ color: '#fff', fontSize: '52px', fontWeight: '500', letterSpacing: '-2px' }}>{Math.round(totalValue).toLocaleString()}</span>
+          <div className={flashClass} style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px', borderRadius: '8px', display: 'inline-flex' }}>
+            <span style={{ color: '#fff', fontSize: '52px', fontWeight: '500', letterSpacing: '-2px' }}><AnimatedNumber value={Math.round(totalValue)} /></span>
             <span style={{ color: '#4ade80', fontSize: '28px', fontWeight: '500' }}>CR</span>
           </div>
           <div style={{ color: '#555', fontSize: '13px', marginBottom: '20px' }}>Total portfolio value · updated live</div>
@@ -385,14 +413,16 @@ export default function Dashboard() {
           {/* Metrics */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '28px' }}>
             {[
-              { label: 'Available credits', val: profile?.credits?.toLocaleString() },
-              { label: 'Invested value', val: Math.round(totalInvested).toLocaleString() },
-              { label: 'Total profit / loss', val: `${totalPL >= 0 ? '+' : ''}${Math.round(totalPL).toLocaleString()}`, color: totalPL >= 0 ? '#4ade80' : '#f87171' },
+              { label: 'Available credits', val: profile?.credits || 0 },
+              { label: 'Invested value', val: Math.round(totalInvested) },
+              { label: 'Total profit / loss', val: Math.round(totalPL), signed: true, color: totalPL >= 0 ? '#4ade80' : '#f87171' },
             ].map((m) => (
-              <div key={m.label} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
+              <div key={m.label} className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
                 <div style={{ color: '#555', fontSize: '13px', marginBottom: '8px' }}>{m.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ color: m.color || '#fff', fontSize: '22px', fontWeight: '500' }}>{m.val}</span>
+                  <span style={{ color: m.color || '#fff', fontSize: '22px', fontWeight: '500' }}>
+                    {m.signed && m.val >= 0 ? '+' : ''}<AnimatedNumber value={m.val} />
+                  </span>
                   <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
                 </div>
               </div>
@@ -435,7 +465,8 @@ export default function Dashboard() {
               return (
                 <div key={h.id}>
                   <div
-                    style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0', borderBottom: isExpanded ? 'none' : '0.5px solid #141414' }}
+                    className="card-hover"
+                    style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', borderRadius: '10px', marginBottom: isExpanded ? '0' : '4px', border: '0.5px solid transparent' }}
                   >
                     <div
                       onClick={() => router.push(`/artist/${h.artist_id}`)}
@@ -590,7 +621,7 @@ export default function Dashboard() {
 
         {/* Sidebar */}
         <div style={{ padding: '32px 28px', overflow: 'auto' }}>
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>ACCOUNT SUMMARY</div>
             {[
               { label: 'Username', val: profile?.username },
@@ -605,7 +636,7 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>MARKET MOVERS</div>
             {movers.length === 0 ? (
               <p style={{ color: '#444', fontSize: '13px' }}>No movers yet — check back after the next market update.</p>
