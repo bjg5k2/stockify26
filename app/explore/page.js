@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
 
 const FEATURED_IDS = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -166,12 +167,17 @@ export default function Explore() {
     router.push('/')
   }
 
+  const cardStyle = { position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', maxHeight: '200px', border: '0.5px solid #1c1c1c', cursor: 'pointer', background: '#111' }
+
   return (
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/home')}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
@@ -226,13 +232,17 @@ export default function Explore() {
         {/* Market Movers */}
         {!searched && movers.length > 0 && (
           <>
-            <div style={{ color: '#555', fontSize: '11px', letterSpacing: '1px', marginBottom: '16px' }}>MARKET MOVERS</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <LiveDot />
+              <div style={{ color: '#555', fontSize: '11px', letterSpacing: '1px' }}>MARKET MOVERS</div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '32px' }}>
               {movers.map((m) => (
                 <div
                   key={m.artist_id}
                   onClick={() => router.push(`/artist/${m.artist_id}`)}
-                  style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', maxHeight: '200px', border: '0.5px solid #1c1c1c', cursor: 'pointer', background: '#111' }}
+                  className="card-hover"
+                  style={cardStyle}
                 >
                   {m.image && (
                     <img src={m.image} alt={m.artist_name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75 }} />
@@ -245,9 +255,9 @@ export default function Explore() {
                     <div style={{ color: '#fff', fontSize: '12px', fontWeight: '500', marginBottom: '3px' }}>{m.artist_name}</div>
                     <div style={{ fontSize: '12px', fontWeight: '500' }}>
                       {m.price ? (
-                        <><span style={{ color: '#fff' }}>{m.price.toLocaleString()}</span><span style={{ color: '#4ade80' }}> CR</span></>
+                        <><span style={{ color: '#fff' }}><AnimatedNumber value={m.price} /></span><span style={{ color: '#4ade80' }}> CR</span></>
                       ) : (
-                        <span style={{ color: '#555' }}>Loading...</span>
+                        <Skeleton width="60px" height="14px" borderRadius="4px" />
                       )}
                     </div>
                   </div>
@@ -266,7 +276,8 @@ export default function Explore() {
                 <div
                   key={m.artist_id}
                   onClick={() => router.push(`/artist/${m.artist_id}`)}
-                  style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', maxHeight: '200px', border: '0.5px solid #1c1c1c', cursor: 'pointer', background: '#111' }}
+                  className="card-hover"
+                  style={cardStyle}
                 >
                   {m.image && (
                     <img src={m.image} alt={m.artist_name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75 }} />
@@ -275,7 +286,7 @@ export default function Explore() {
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '12px' }}>
                     <div style={{ color: '#fff', fontSize: '12px', fontWeight: '500', marginBottom: '3px' }}>{m.artist_name}</div>
                     <div style={{ fontSize: '12px', fontWeight: '500' }}>
-                      <span style={{ color: '#fff' }}>{Math.round(m.total).toLocaleString()}</span>
+                      <span style={{ color: '#fff' }}><AnimatedNumber value={Math.round(m.total)} /></span>
                       <span style={{ color: '#4ade80' }}> CR invested</span>
                     </div>
                   </div>
@@ -294,7 +305,8 @@ export default function Explore() {
                 <div
                   key={a.id}
                   onClick={() => router.push(`/artist/${a.id}`)}
-                  style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', maxHeight: '200px', border: '0.5px solid #1c1c1c', cursor: 'pointer', background: '#111' }}
+                  className="card-hover"
+                  style={cardStyle}
                 >
                   {a.image && (
                     <img src={a.image} alt={a.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75 }} />
@@ -304,9 +316,9 @@ export default function Explore() {
                     <div style={{ color: '#fff', fontSize: '12px', fontWeight: '500', marginBottom: '3px' }}>{a.name}</div>
                     <div style={{ fontSize: '12px', fontWeight: '500' }}>
                       {a.price ? (
-                        <><span style={{ color: '#fff' }}>{a.price.toLocaleString()}</span><span style={{ color: '#4ade80' }}> CR</span></>
+                        <><span style={{ color: '#fff' }}><AnimatedNumber value={a.price} /></span><span style={{ color: '#4ade80' }}> CR</span></>
                       ) : (
-                        <span style={{ color: '#555' }}>Loading...</span>
+                        <Skeleton width="60px" height="14px" borderRadius="4px" />
                       )}
                     </div>
                   </div>
@@ -317,7 +329,11 @@ export default function Explore() {
         )}
 
         {/* Results */}
-        {loading && <p style={{ color: '#555', fontSize: '14px' }}>Searching...</p>}
+        {loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} height="84px" borderRadius="12px" />)}
+          </div>
+        )}
 
         {searched && !loading && (
           <>
@@ -334,6 +350,7 @@ export default function Explore() {
                   <div
                     key={artist.id}
                     onClick={() => router.push(`/artist/${artist.id}`)}
+                    className="card-hover"
                     style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }}
                   >
                     {artist.image ? (
@@ -360,7 +377,7 @@ export default function Explore() {
 
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: 'flex-end' }}>
-                        <span style={{ color: '#fff', fontSize: '18px', fontWeight: '500' }}>{price.toLocaleString()}</span>
+                        <span style={{ color: '#fff', fontSize: '18px', fontWeight: '500' }}><AnimatedNumber value={price} /></span>
                         <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
                       </div>
                       <div style={{ color: '#555', fontSize: '12px', marginTop: '2px' }}>per share</div>
