@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { EQVisualizer, AnimatedNumber, Skeleton } from '../components/FX'
 
 export default function LeaderboardPage() {
   const [myProfile, setMyProfile] = useState(null)
@@ -78,8 +79,25 @@ export default function LeaderboardPage() {
   }
 
   if (loading) return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      <p style={{ color: '#555' }}>Loading...</p>
+    <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
+      </nav>
+      <div style={{ flex: 1, overflow: 'auto', padding: '32px 48px' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <Skeleton width="220px" height="32px" borderRadius="6px" />
+          <div style={{ marginTop: '12px' }}><Skeleton width="320px" height="16px" borderRadius="4px" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginTop: '28px', marginBottom: '28px' }}>
+            {[1, 2, 3].map(i => <Skeleton key={i} height="160px" borderRadius="14px" />)}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} height="62px" borderRadius="12px" />)}
+          </div>
+        </div>
+      </div>
     </main>
   )
 
@@ -95,7 +113,10 @@ export default function LeaderboardPage() {
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/home')}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
@@ -122,6 +143,7 @@ export default function LeaderboardPage() {
               <div
                 key={u.id}
                 onClick={() => router.push(`/profile/${u.username}`)}
+                className="card-hover"
                 style={{
                   background: i === 0 ? 'linear-gradient(135deg, #1a1a0a, #0f0f0a)' : '#0f0f0f',
                   border: `0.5px solid ${i === 0 ? '#3a3a0a' : '#1c1c1c'}`,
@@ -137,7 +159,7 @@ export default function LeaderboardPage() {
                   {u.username?.slice(0, 2).toUpperCase()}
                 </div>
                 <div style={{ color: '#fff', fontSize: '16px', fontWeight: '600' }}>{u.username}</div>
-                <div style={{ color: medalColors[i], fontSize: '18px', fontWeight: '600', marginTop: '6px' }}>{Math.round(u.netWorth).toLocaleString()} CR</div>
+                <div style={{ color: medalColors[i], fontSize: '18px', fontWeight: '600', marginTop: '6px' }}><AnimatedNumber value={Math.round(u.netWorth)} /> CR</div>
                 <div style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>{u.holdingsCount} artists · {u.badgesCount} badges</div>
               </div>
             ))}
@@ -151,6 +173,7 @@ export default function LeaderboardPage() {
                 <div
                   key={u.id}
                   onClick={() => router.push(`/profile/${u.username}`)}
+                  className="card-hover"
                   style={{
                     display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 20px',
                     borderBottom: i < rest.length - 1 ? '0.5px solid #141414' : 'none',
@@ -169,7 +192,7 @@ export default function LeaderboardPage() {
                     </div>
                     <div style={{ color: '#555', fontSize: '12px', marginTop: '2px' }}>{u.holdingsCount} artists · {u.badgesCount} badges</div>
                   </div>
-                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>{Math.round(u.netWorth).toLocaleString()} CR</div>
+                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}><AnimatedNumber value={Math.round(u.netWorth)} /> CR</div>
                 </div>
               )
             })}
