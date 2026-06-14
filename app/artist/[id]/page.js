@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../../components/FX'
 
 export default function ArtistPage() {
   const [artist, setArtist] = useState(null)
@@ -235,9 +236,43 @@ export default function ArtistPage() {
     router.push('/')
   }
 
+  const price = artist ? getPrice(artist) : 0
+  const currentValue = holding && artist ? holding.shares * price : 0
+  const avgPrice = getAvgPrice()
+  const pl = holding ? currentValue - (holding.shares * avgPrice) : 0
+  const plPct = avgPrice > 0 ? (((price - avgPrice) / avgPrice) * 100).toFixed(1) : '0.0'
+  const chartUp = priceHistory.length < 2 || priceHistory[priceHistory.length - 1]?.price >= priceHistory[0]?.price
+
+  const valueFlash = useFlash(Math.round(currentValue))
+  const plFlash = useFlash(Math.round(pl))
+
   if (loading) return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      <p style={{ color: '#555' }}>Loading...</p>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
+      </nav>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', minHeight: 'calc(100vh - 65px)' }}>
+        <div style={{ padding: '28px 40px', borderRight: '0.5px solid #141414' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '28px' }}>
+            <Skeleton width="100px" height="100px" borderRadius="50%" />
+            <div style={{ flex: 1 }}>
+              <Skeleton width="220px" height="32px" borderRadius="6px" />
+              <div style={{ marginTop: '10px' }}><Skeleton width="320px" height="16px" borderRadius="4px" /></div>
+            </div>
+          </div>
+          <Skeleton height="180px" borderRadius="12px" />
+          <div style={{ marginTop: '14px' }}><Skeleton height="120px" borderRadius="12px" /></div>
+          <div style={{ marginTop: '14px' }}><Skeleton height="200px" borderRadius="12px" /></div>
+        </div>
+        <div style={{ padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <Skeleton height="180px" borderRadius="12px" />
+          <Skeleton height="120px" borderRadius="12px" />
+          <Skeleton height="160px" borderRadius="12px" />
+        </div>
+      </div>
     </main>
   )
 
@@ -246,13 +281,6 @@ export default function ArtistPage() {
       <p style={{ color: '#555' }}>Artist not found.</p>
     </main>
   )
-
-  const price = getPrice(artist)
-  const currentValue = holding ? holding.shares * price : 0
-  const avgPrice = getAvgPrice()
-  const pl = holding ? currentValue - (holding.shares * avgPrice) : 0
-  const plPct = avgPrice > 0 ? (((price - avgPrice) / avgPrice) * 100).toFixed(1) : '0.0'
-  const chartUp = priceHistory.length < 2 || priceHistory[priceHistory.length - 1]?.price >= priceHistory[0]?.price
 
   let priceYDomain = ['auto', 'auto']
   if (priceHistory.length >= 2) {
@@ -289,7 +317,10 @@ export default function ArtistPage() {
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/home')}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
@@ -332,7 +363,7 @@ export default function ArtistPage() {
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', justifyContent: 'flex-end' }}>
-                  <span style={{ color: '#fff', fontSize: '42px', fontWeight: '500', letterSpacing: '-1px' }}>{price.toLocaleString()}</span>
+                  <span style={{ color: '#fff', fontSize: '42px', fontWeight: '500', letterSpacing: '-1px' }}><AnimatedNumber value={price} /></span>
                   <span style={{ color: '#4ade80', fontSize: '22px', fontWeight: '500' }}>CR</span>
                 </div>
                 <p style={{ color: '#555', fontSize: '13px' }}>per share</p>
@@ -341,7 +372,7 @@ export default function ArtistPage() {
           </div>
 
           {/* Price History Chart */}
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px' }}>PRICE HISTORY</div>
               {priceHistory.length >= 2 && (
@@ -388,20 +419,27 @@ export default function ArtistPage() {
 
           {/* Position */}
           {holding && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>YOUR POSITION</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
-                {[
-                  { label: 'Shares owned', val: holding.shares.toFixed(2), color: '#fff' },
-                  { label: 'Avg buy price', val: `${avgPrice.toLocaleString()} CR`, color: '#fff' },
-                  { label: 'Current value', val: `${Math.round(currentValue).toLocaleString()} CR`, color: '#fff' },
-                  { label: 'Profit / Loss', val: `${pl >= 0 ? '+' : ''}${Math.round(pl).toLocaleString()} CR (${plPct}%)`, color: pl >= 0 ? '#4ade80' : '#f87171' },
-                ].map(item => (
-                  <div key={item.label}>
-                    <div style={{ color: '#555', fontSize: '11px', marginBottom: '5px' }}>{item.label}</div>
-                    <div style={{ color: item.color, fontSize: '15px', fontWeight: '500' }}>{item.val}</div>
+                <div>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '5px' }}>Shares owned</div>
+                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}>{holding.shares.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '5px' }}>Avg buy price</div>
+                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}><AnimatedNumber value={avgPrice} /> CR</div>
+                </div>
+                <div className={valueFlash} style={{ borderRadius: '6px' }}>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '5px' }}>Current value</div>
+                  <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}><AnimatedNumber value={Math.round(currentValue)} /> CR</div>
+                </div>
+                <div className={plFlash} style={{ borderRadius: '6px' }}>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '5px' }}>Profit / Loss</div>
+                  <div style={{ color: pl >= 0 ? '#4ade80' : '#f87171', fontSize: '15px', fontWeight: '500' }}>
+                    {pl >= 0 ? '+' : ''}<AnimatedNumber value={Math.round(pl)} /> CR ({plPct}%)
                   </div>
-                ))}
+                </div>
               </div>
             </div>
           )}
@@ -510,7 +548,7 @@ export default function ArtistPage() {
 
           {/* Trade History */}
           {transactions.length > 0 && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>TRADE HISTORY</div>
               {transactions.map((tx, i) => (
                 <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: i < transactions.length - 1 ? '0.5px solid #141414' : 'none' }}>
@@ -537,25 +575,33 @@ export default function ArtistPage() {
         <div style={{ padding: '28px 24px', overflow: 'auto' }}>
 
           {/* Artist Stats */}
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ARTIST STATS</div>
-            {[
-              { label: 'Followers', val: artist.followers.toLocaleString() },
-              { label: 'Popularity score', val: `${artist.popularity} / 100` },
-              { label: 'Genre', val: artist.genres.length > 0 ? artist.genres.join(', ') : 'N/A' },
-              { label: 'Share price', val: `${price.toLocaleString()} CR` },
-              { label: 'Total investors', val: `${totalInvestors} user${totalInvestors !== 1 ? 's' : ''}` },
-            ].map((s, i, arr) => (
-              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #111' : 'none' }}>
-                <span style={{ color: '#555', fontSize: '13px' }}>{s.label}</span>
-                <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{s.val}</span>
-              </div>
-            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+              <span style={{ color: '#555', fontSize: '13px' }}>Followers</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}><AnimatedNumber value={artist.followers} /></span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+              <span style={{ color: '#555', fontSize: '13px' }}>Popularity score</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{artist.popularity} / 100</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+              <span style={{ color: '#555', fontSize: '13px' }}>Genre</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{artist.genres.length > 0 ? artist.genres.join(', ') : 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+              <span style={{ color: '#555', fontSize: '13px' }}>Share price</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}><AnimatedNumber value={price} /> CR</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+              <span style={{ color: '#555', fontSize: '13px' }}>Total investors</span>
+              <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{totalInvestors} user{totalInvestors !== 1 ? 's' : ''}</span>
+            </div>
           </div>
 
           {/* Bio */}
           {bio && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ABOUT</div>
               <p style={{ color: '#fff', fontSize: '13px', lineHeight: '1.7' }}>{bio}</p>
             </div>
@@ -563,7 +609,7 @@ export default function ArtistPage() {
 
           {/* Top Investors */}
           {topInvestors.length > 0 && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
               <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>TOP INVESTORS</div>
               {topInvestors.map((inv, i) => (
                 <div key={inv.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topInvestors.length - 1 ? '0.5px solid #111' : 'none' }}>
@@ -572,7 +618,7 @@ export default function ArtistPage() {
                   </div>
                   <span style={{ color: '#ddd', fontSize: '13px', flex: 1 }}>{inv.username}</span>
                   <span style={{ color: '#555', fontSize: '12px' }}>{inv.shares.toFixed(2)} shares</span>
-                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}>{(inv.shares * price).toLocaleString()} CR</span>
+                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}><AnimatedNumber value={Math.round(inv.shares * price)} /> CR</span>
                 </div>
               ))}
             </div>

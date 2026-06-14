@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../../components/FX'
 
 function timeAgo(dateStr) {
   const date = new Date(dateStr)
@@ -183,8 +184,28 @@ export default function ProfilePage() {
   }
 
   if (loading) return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      <p style={{ color: '#555' }}>Loading...</p>
+    <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
+      </nav>
+      <div style={{ padding: '32px 48px', flexShrink: 0 }}>
+        <Skeleton height="120px" borderRadius="16px" />
+      </div>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 320px', gap: '20px', padding: '0 48px 24px', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(2, 1fr)', gap: '10px' }}>
+          {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} borderRadius="12px" />)}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <Skeleton height="80px" borderRadius="12px" />
+          <Skeleton height="60px" borderRadius="12px" />
+          <Skeleton height="60px" borderRadius="12px" />
+          <Skeleton height="60px" borderRadius="12px" />
+        </div>
+        <Skeleton borderRadius="12px" />
+      </div>
     </main>
   )
 
@@ -214,7 +235,10 @@ export default function ProfilePage() {
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/home')}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
@@ -264,7 +288,7 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', gap: '36px', marginLeft: 'auto' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '26px', fontWeight: '600' }}>
-                {Math.round(netWorth).toLocaleString()} <span style={{ fontSize: '14px', color: '#4ade80' }}>CR</span>
+                <AnimatedNumber value={Math.round(netWorth)} /> <span style={{ fontSize: '14px', color: '#4ade80' }}>CR</span>
               </div>
               <div style={{ color: '#8fae9c', fontSize: '11px', marginTop: '3px', letterSpacing: '0.5px' }}>NET WORTH</div>
             </div>
@@ -304,6 +328,7 @@ export default function ProfilePage() {
                   <div
                     key={h.id}
                     onClick={() => router.push(`/artist/${h.artist_id}`)}
+                    className="card-hover"
                     style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', background: '#111' }}
                   >
                     {artist?.image && (
@@ -318,7 +343,7 @@ export default function ProfilePage() {
                       )}
                       <div style={{ color: '#fff', fontSize: '13px', fontWeight: '600' }}>{h.artist_name}</div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '2px' }}>
-                        <span style={{ color: '#fff', fontSize: '12px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
+                        <span style={{ color: '#fff', fontSize: '12px', fontWeight: '500' }}><AnimatedNumber value={Math.round(currentValue)} /></span>
                         <span style={{ color: '#4ade80', fontSize: '10px', fontWeight: '500' }}>CR</span>
                         {pl !== null && (
                           <span style={{ color: up ? '#4ade80' : '#f87171', fontSize: '11px', fontWeight: '600', marginLeft: 'auto' }}>
@@ -344,7 +369,7 @@ export default function ProfilePage() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               {badges.slice(0, 4).map(b => (
-                <div key={b.id} style={{ background: 'linear-gradient(135deg, #1a1a0a, #0f0f0a)', border: '0.5px solid #3a3a0a', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                <div key={b.id} className="card-hover" style={{ background: 'linear-gradient(135deg, #1a1a0a, #0f0f0a)', border: '0.5px solid #3a3a0a', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
                   <div style={{ fontSize: '26px', marginBottom: '6px' }}>🏆</div>
                   <div style={{ color: '#fbbf24', fontSize: '11px', fontWeight: '600' }}>First Investor</div>
                   <div style={{ color: '#8a8a6a', fontSize: '10px', marginTop: '2px' }}>{b.artist_name}</div>
@@ -354,23 +379,26 @@ export default function ProfilePage() {
           )}
 
           <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px', marginTop: '6px' }}>OVERVIEW</div>
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#555', fontSize: '12px' }}>Total Profit / Loss</span>
-            <span style={{ fontSize: '18px', fontWeight: '600', color: totalPL >= 0 ? '#4ade80' : '#f87171' }}>{totalPL >= 0 ? '+' : ''}{Math.round(totalPL).toLocaleString()} CR</span>
+            <span style={{ fontSize: '18px', fontWeight: '600', color: totalPL >= 0 ? '#4ade80' : '#f87171' }}>{totalPL >= 0 ? '+' : ''}<AnimatedNumber value={Math.round(totalPL)} /> CR</span>
           </div>
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#555', fontSize: '12px' }}>Portfolio Value</span>
-            <span style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}>{Math.round(totalValue).toLocaleString()} CR</span>
+            <span style={{ fontSize: '18px', fontWeight: '600', color: '#fff' }}><AnimatedNumber value={Math.round(totalValue)} /> CR</span>
           </div>
-          <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#555', fontSize: '12px' }}>Available Credits</span>
-            <span style={{ fontSize: '18px', fontWeight: '600', color: '#4ade80' }}>{profile.credits?.toLocaleString()} CR</span>
+            <span style={{ fontSize: '18px', fontWeight: '600', color: '#4ade80' }}><AnimatedNumber value={profile.credits || 0} /> CR</span>
           </div>
         </div>
 
         {/* Col 3: Activity Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflow: 'hidden' }}>
-          <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px' }}>RECENT ACTIVITY</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <LiveDot />
+            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px' }}>RECENT ACTIVITY</div>
+          </div>
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', flex: 1, overflow: 'auto' }}>
             {activity.length === 0 ? (
               <p style={{ color: '#444', fontSize: '13px', textAlign: 'center' }}>No activity yet.</p>
