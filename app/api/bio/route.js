@@ -17,7 +17,12 @@ export async function GET(request) {
     }
 
     const bio = data.artist?.bio?.summary || null
-    const cleanBio = bio ? bio.replace(/<a[^>]*>.*?<\/a>/g, '').replace(/<[^>]*>/g, '').trim() : null
+    let cleanBio = bio ? bio.replace(/<a[^>]*>.*?<\/a>/g, '').replace(/<[^>]*>/g, '').trim() : null
+
+    // Last.fm returns a disambiguation list when multiple artists share a name
+    if (cleanBio && /there are (at least )?\d+ artists? (who have used|with the name)/i.test(cleanBio)) {
+      cleanBio = null
+    }
 
     return Response.json({
       bio: cleanBio,
