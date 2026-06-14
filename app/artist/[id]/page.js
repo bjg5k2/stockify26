@@ -45,11 +45,15 @@ export default function ArtistPage() {
         .from('artist_snapshots').select('*').eq('artist_id', id)
         .order('snapshot_date', { ascending: true })
       if (snapData && snapData.length > 0) {
-        setPriceHistory(snapData.map(s => ({
-          date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-          price: Math.round((Math.sqrt(s.monthly_listeners) * (91 / 10) + (91 * 91) / 200) / 10)
-        })))
-      }
+  setPriceHistory(snapData.map(s => {
+    const pop = s.popularity ?? 91
+    return {
+      date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+      price: Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
+    }
+  }))
+}
+      
 
       const { data: allHoldings } = await supabase
         .from('holdings').select('user_id, shares').eq('artist_id', id)

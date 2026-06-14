@@ -71,6 +71,7 @@ export async function GET(request) {
           artist_id: artist.id,
           artist_name: artist.name,
           monthly_listeners: followers,
+          popularity: popularity,
           snapshot_date: today
         }, { onConflict: 'artist_id,snapshot_date' })
 
