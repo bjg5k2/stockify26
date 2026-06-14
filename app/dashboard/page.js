@@ -13,6 +13,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState('value')
   const [sortDir, setSortDir] = useState('desc')
+
+  const [expandedId, setExpandedId] = useState(null)
+  const [tradeType, setTradeType] = useState('buy')
+  const [tradeMode, setTradeMode] = useState('cr')
+  const [tradeInput, setTradeInput] = useState('')
+  const [tradeMessage, setTradeMessage] = useState({ text: '', success: true })
+  const [pendingSell, setPendingSell] = useState(null)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -148,6 +156,103 @@ export default function Dashboard() {
     router.push('/')
   }
 
+  // --- Trade panel logic ---
+  const showTradeMessage = (text, success = true) => {
+    setTradeMessage({ text, success })
+    setTimeout(() => setTradeMessage({ text: '', success: true }), 4000)
+  }
+
+  const toggleExpand = (h) => {
+    if (expandedId === h.id) {
+      setExpandedId(null)
+    } else {
+      setExpandedId(h.id)
+      setTradeType('buy')
+      setTradeMode('cr')
+      setTradeInput('')
+      setTradeMessage({ text: '', success: true })
+      setPendingSell(null)
+    }
+  }
+
+  const getTradeShares = (h, artist) => {
+    const price = getPrice(artist)
+    if (tradeMode === 'cr') return parseInt(tradeInput) / price || 0
+    return parseFloat(tradeInput) || 0
+  }
+
+  const getTradeCRAmount = (h, artist) => {
+    const price = getPrice(artist)
+    if (tradeMode === 'cr') return parseInt(tradeInput) || 0
+    return Math.floor((parseFloat(tradeInput) || 0) * price)
+  }
+
+  const handleTradeInput = (val) => {
+    if (tradeMode === 'cr') setTradeInput(Math.floor(Math.abs(val)) || '')
+    else setTradeInput(val)
+  }
+
+  const buyMore = async (h) => {
+    const artist = artistData[h.artist_id]
+    if (!artist) return
+    const price = getPrice(artist)
+    const shares = getTradeShares(h, artist)
+    const cost = getTradeCRAmount(h, artist)
+    if (!shares || shares <= 0) { showTradeMessage('Enter a valid amount.', false); return }
+    if (cost > profile.credits) { showTradeMessage('Not enough credits!', false); return }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('holdings').update({ shares: h.shares + shares }).eq('id', h.id)
+    await supabase.from('transactions').insert({
+      user_id: user.id, artist_id: h.artist_id, artist_name: h.artist_name,
+      type: 'buy', shares, price_per_share: price, total: cost
+    })
+    const newCredits = profile.credits - cost
+    await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
+    setProfile({ ...profile, credits: newCredits })
+    setHoldings(holdings.map(x => x.id === h.id ? { ...x, shares: x.shares + shares } : x))
+    setTradeInput('')
+    showTradeMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
+  }
+
+  const requestSell = (h, sellAll = false) => {
+    const artist = artistData[h.artist_id]
+    if (!artist) return
+    const price = getPrice(artist)
+    const sharesToSell = sellAll ? h.shares : getTradeShares(h, artist)
+    const returnAmount = Math.floor(sharesToSell * price)
+    if (!sharesToSell || sharesToSell <= 0) { showTradeMessage('Enter a valid amount.', false); return }
+    if (sharesToSell > h.shares) { showTradeMessage('Not enough shares!', false); return }
+    setPendingSell({ holdingId: h.id, sharesToSell, returnAmount, sellAll })
+  }
+
+  const confirmSell = async (h) => {
+    const artist = artistData[h.artist_id]
+    if (!artist || !pendingSell) return
+    const price = getPrice(artist)
+    const { sharesToSell, returnAmount } = pendingSell
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (h.shares - sharesToSell <= 0.0001) {
+      await supabase.from('holdings').delete().eq('id', h.id)
+      setHoldings(holdings.filter(x => x.id !== h.id))
+      setExpandedId(null)
+    } else {
+      await supabase.from('holdings').update({ shares: h.shares - sharesToSell }).eq('id', h.id)
+      setHoldings(holdings.map(x => x.id === h.id ? { ...x, shares: x.shares - sharesToSell } : x))
+    }
+    await supabase.from('transactions').insert({
+      user_id: user.id, artist_id: h.artist_id, artist_name: h.artist_name,
+      type: 'sell', shares: sharesToSell, price_per_share: price, total: returnAmount
+    })
+    const newCredits = profile.credits + returnAmount
+    await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
+    setProfile({ ...profile, credits: newCredits })
+    setTradeInput('')
+    setPendingSell(null)
+    showTradeMessage(`Sold ${sharesToSell.toFixed(2)} shares for ${returnAmount.toLocaleString()} CR!`)
+  }
+
   if (loading) return (
     <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
       <p style={{ color: '#555' }}>Loading...</p>
@@ -198,12 +303,30 @@ export default function Dashboard() {
     cursor: 'pointer',
   })
 
+  const tabStyle = (active) => ({
+    flex: 1, padding: '7px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+    fontSize: '12px', fontWeight: '500',
+    background: active ? '#1a1a1a' : 'transparent',
+    color: active ? '#fff' : '#555',
+  })
+
+  const tradeInputStyle = {
+    flex: 1,
+    background: '#0a0a0a',
+    border: '0.5px solid #2a2a2a',
+    borderRadius: '8px',
+    padding: '10px 14px',
+    color: '#fff',
+    fontSize: '13px',
+    outline: 'none'
+  }
+
   return (
     <main style={{ background: '#0a0a0a', height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'sans-serif', color: '#fff', overflow: 'hidden' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px' }}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', letterSpacing: '-0.5px', cursor: 'pointer' }}>Stockify</div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Portfolio</span>
@@ -305,34 +428,160 @@ export default function Dashboard() {
               const currentPrice = artist ? getPrice(artist) : h.buy_price
               const currentValue = h.shares * currentPrice
               const pl = getPL(h)
-              const up = parseFloat(pl) >= 0
+              const plUp = parseFloat(pl) >= 0
+              const isExpanded = expandedId === h.id
+              const isPendingSell = pendingSell?.holdingId === h.id
 
               return (
-                <div
-                  key={h.id}
-                  onClick={() => router.push(`/artist/${h.artist_id}`)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0', borderBottom: '0.5px solid #141414', cursor: 'pointer' }}
-                >
-                  {artist?.image ? (
-                    <img src={artist.image} alt={h.artist_name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: '#ddd', fontSize: '16px', fontWeight: '500' }}>{h.artist_name}</div>
-                    <div style={{ color: '#555', fontSize: '13px', marginTop: '3px' }}>{h.shares.toFixed(2)} shares · avg {Math.round(h.buy_price).toLocaleString()} CR</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', justifyContent: 'flex-end' }}>
-                      <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
-                      <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
-                    </div>
-                    {pl !== null && (
-                      <div style={{ color: up ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500', marginTop: '3px' }}>
-                        {up ? '+' : ''}{pl}%
+                <div key={h.id}>
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0', borderBottom: isExpanded ? 'none' : '0.5px solid #141414' }}
+                  >
+                    <div
+                      onClick={() => router.push(`/artist/${h.artist_id}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, cursor: 'pointer' }}
+                    >
+                      {artist?.image ? (
+                        <img src={artist.image} alt={h.artist_name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: '#ddd', fontSize: '16px', fontWeight: '500' }}>{h.artist_name}</div>
+                        <div style={{ color: '#555', fontSize: '13px', marginTop: '3px' }}>{h.shares.toFixed(2)} shares · avg {Math.round(h.buy_price).toLocaleString()} CR</div>
                       </div>
-                    )}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', justifyContent: 'flex-end' }}>
+                          <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500' }}>{Math.round(currentValue).toLocaleString()}</span>
+                          <span style={{ color: '#4ade80', fontSize: '12px' }}>CR</span>
+                        </div>
+                        {pl !== null && (
+                          <div style={{ color: plUp ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500', marginTop: '3px' }}>
+                            {plUp ? '+' : ''}{pl}%
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleExpand(h)}
+                      style={{
+                        background: isExpanded ? '#1a1a1a' : 'transparent',
+                        border: '0.5px solid #2a2a2a',
+                        color: isExpanded ? '#fff' : '#888',
+                        fontSize: '12px', fontWeight: '500',
+                        padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      {isExpanded ? 'Close' : 'Trade'}
+                    </button>
                   </div>
+
+                  {isExpanded && artist && (
+                    <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+
+                      {/* Message */}
+                      {tradeMessage.text && (
+                        <div style={{ background: tradeMessage.success ? '#0f2a18' : '#1a0a0a', border: `0.5px solid ${tradeMessage.success ? '#1a4a2a' : '#3a1a1a'}`, borderRadius: '8px', padding: '10px 14px', color: tradeMessage.success ? '#4ade80' : '#f87171', fontSize: '13px', marginBottom: '12px' }}>
+                          {tradeMessage.text}
+                        </div>
+                      )}
+
+                      {isPendingSell ? (
+                        <div>
+                          <div style={{ color: '#fff', fontSize: '14px', marginBottom: '4px' }}>
+                            {pendingSell.sellAll
+                              ? `Sell your entire position in ${h.artist_name}?`
+                              : `Sell ${pendingSell.sharesToSell.toFixed(2)} shares of ${h.artist_name}?`}
+                          </div>
+                          <div style={{ color: '#f87171', fontSize: '17px', fontWeight: '600', marginBottom: '14px' }}>
+                            You'll receive {pendingSell.returnAmount.toLocaleString()} CR
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={() => confirmSell(h)} style={{ flex: 1, background: '#f87171', color: '#000', fontSize: '13px', fontWeight: '500', padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+                              Confirm Sell
+                            </button>
+                            <button onClick={() => setPendingSell(null)} style={{ flex: 1, background: 'transparent', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '13px', fontWeight: '500', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Buy / Sell toggle */}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                            <button
+                              onClick={() => { setTradeType('buy'); setTradeInput('') }}
+                              style={{
+                                flex: 1, padding: '8px', borderRadius: '8px',
+                                border: tradeType === 'buy' ? '1px solid #4ade80' : '0.5px solid #1a4a2a',
+                                background: '#0f2a18', color: '#4ade80',
+                                fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+                                opacity: tradeType === 'buy' ? 1 : 0.6
+                              }}
+                            >
+                              Buy more
+                            </button>
+                            <button
+                              onClick={() => { setTradeType('sell'); setTradeInput('') }}
+                              style={{
+                                flex: 1, padding: '8px', borderRadius: '8px',
+                                border: tradeType === 'sell' ? '1px solid #f87171' : '0.5px solid #3a1a1a',
+                                background: '#1a0a0a', color: '#f87171',
+                                fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+                                opacity: tradeType === 'sell' ? 1 : 0.6
+                              }}
+                            >
+                              Sell
+                            </button>
+                          </div>
+
+                          {/* CR / Shares mode toggle */}
+                          <div style={{ display: 'flex', background: '#0a0a0a', borderRadius: '8px', padding: '3px', marginBottom: '10px' }}>
+                            <button style={tabStyle(tradeMode === 'cr')} onClick={() => { setTradeMode('cr'); setTradeInput('') }}>By CR amount</button>
+                            <button style={tabStyle(tradeMode === 'shares')} onClick={() => { setTradeMode('shares'); setTradeInput('') }}>By share count</button>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                            <input
+                              type="number" min="0" step={tradeMode === 'cr' ? '1' : 'any'}
+                              placeholder={tradeMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
+                              value={tradeInput} onChange={e => handleTradeInput(e.target.value)}
+                              style={tradeInputStyle}
+                            />
+                            {tradeType === 'buy' ? (
+                              <button onClick={() => buyMore(h)} style={{ background: '#4ade80', color: '#000', fontSize: '13px', fontWeight: '500', padding: '10px 22px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
+                            ) : (
+                              <button onClick={() => requestSell(h, false)} style={{ background: '#1a0a0a', border: '0.5px solid #3a1a1a', color: '#f87171', fontSize: '13px', fontWeight: '500', padding: '10px 22px', borderRadius: '8px', cursor: 'pointer' }}>Sell</button>
+                            )}
+                          </div>
+
+                          {tradeInput > 0 && (
+                            <div style={{ color: '#555', fontSize: '12px', marginBottom: '8px' }}>
+                              {tradeType === 'buy'
+                                ? `≈ ${getTradeShares(h, artist).toFixed(2)} shares for ${getTradeCRAmount(h, artist).toLocaleString()} CR`
+                                : `≈ ${getTradeShares(h, artist).toFixed(2)} shares · receive ${getTradeCRAmount(h, artist).toLocaleString()} CR`}
+                            </div>
+                          )}
+
+                          {tradeType === 'sell' && (
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {[25, 50, 75, 100].map(pct => (
+                                <button key={pct}
+                                  onClick={() => {
+                                    if (pct === 100) { requestSell(h, true); return }
+                                    setTradeMode('shares')
+                                    setTradeInput((h.shares * (pct / 100)).toFixed(4))
+                                  }}
+                                  style={{ flex: 1, background: '#1a1a1a', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '12px', padding: '7px', borderRadius: '6px', cursor: 'pointer' }}>
+                                  {pct}%
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })
