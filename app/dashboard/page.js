@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [holdings, setHoldings] = useState([])
   const [artistData, setArtistData] = useState({})
   const [snapshots, setSnapshots] = useState([])
+  const [movers, setMovers] = useState([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState('value')
   const [sortDir, setSortDir] = useState('desc')
@@ -43,6 +44,50 @@ export default function Dashboard() {
         })
       )
       setArtistData(artistMap)
+
+      // Market Movers (same logic as explore page)
+      const { data: snapshotsAll } = await supabase
+        .from('artist_snapshots')
+        .select('*')
+        .order('snapshot_date', { ascending: true })
+
+      const byArtist = {}
+      ;(snapshotsAll || []).forEach(s => {
+        if (!byArtist[s.artist_id]) byArtist[s.artist_id] = []
+        byArtist[s.artist_id].push(s)
+      })
+
+      const moversRaw = Object.entries(byArtist)
+        .filter(([, snaps]) => snaps.length >= 2)
+        .map(([id, snaps]) => {
+          const first = snaps[0]
+          const last = snaps[snaps.length - 1]
+          const growth = first.monthly_listeners > 0
+            ? ((last.monthly_listeners - first.monthly_listeners) / first.monthly_listeners) * 100
+            : 0
+          return { artist_id: id, artist_name: last.artist_name, growth }
+        })
+        .filter(m => m.growth > 0)
+        .sort((a, b) => b.growth - a.growth)
+        .slice(0, 4)
+
+      const moversWithData = await Promise.all(
+        moversRaw.map(async (m) => {
+          try {
+            const res = await fetch(`/api/artist?id=${m.artist_id}`)
+            const data = await res.json()
+            return {
+              ...m,
+              image: data.artist?.image || null,
+              price: data.artist ? getPrice(data.artist) : null,
+            }
+          } catch {
+            return { ...m, image: null, price: null }
+          }
+        })
+      )
+      setMovers(moversWithData)
+
       setLoading(false)
     }
     getData()
@@ -129,7 +174,6 @@ export default function Dashboard() {
   ]
   if (chartData.length < 2) chartData.unshift({ date: 'Start', value: 1000 })
 
-  // Calculate Y-axis domain so the chart zooms into the actual price range
   const chartValues = chartData.map(d => d.value)
   const chartMin = Math.min(...chartValues)
   const chartMax = Math.max(...chartValues)
@@ -163,8 +207,8 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Portfolio</span>
           <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
-<span onClick={() => router.push(`/profile/${profile?.username}`)} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Profile</span>
+          <span onClick={() => router.push('/leaderboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
+          <span onClick={() => router.push(`/profile/${profile?.username}`)} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Profile</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{initials}</div>
             <span style={{ color: '#aaa', fontSize: '16px' }}>{profile?.username}</span>
@@ -312,19 +356,23 @@ export default function Dashboard() {
           </div>
 
           <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
-            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>TRENDING TODAY</div>
-            {[
-              { name: 'Sabrina Carpenter', price: '3,306', change: '+12.4%', up: true },
-              { name: 'Zach Top', price: '432', change: '+18.6%', up: true },
-              { name: 'Clairo', price: '718', change: '+7.8%', up: true },
-              { name: 'Drake', price: '11,242', change: '-1.9%', up: false },
-            ].map((t, i, arr) => (
-              <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #111' : 'none' }}>
-                <span style={{ color: '#ddd', fontSize: '14px', flex: 1 }}>{t.name}</span>
-                <span style={{ color: '#888', fontSize: '13px' }}>{t.price} CR</span>
-                <span style={{ color: t.up ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500' }}>{t.change}</span>
-              </div>
-            ))}
+            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '16px' }}>MARKET MOVERS</div>
+            {movers.length === 0 ? (
+              <p style={{ color: '#444', fontSize: '13px' }}>No movers yet — check back after the next market update.</p>
+            ) : (
+              movers.map((m, i, arr) => (
+                <div key={m.artist_id} onClick={() => router.push(`/artist/${m.artist_id}`)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', borderBottom: i < arr.length - 1 ? '0.5px solid #111' : 'none', cursor: 'pointer' }}>
+                  {m.image ? (
+                    <img src={m.image} alt={m.artist_name} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
+                  )}
+                  <span style={{ color: '#ddd', fontSize: '14px', flex: 1 }}>{m.artist_name}</span>
+                  <span style={{ color: '#888', fontSize: '13px' }}>{m.price?.toLocaleString()} CR</span>
+                  <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>▲ {m.growth.toFixed(1)}%</span>
+                </div>
+              ))
+            )}
           </div>
 
           <button onClick={() => router.push('/explore')} style={{ width: '100%', background: '#4ade80', color: '#000', fontSize: '15px', fontWeight: '500', padding: '15px', borderRadius: '10px', border: 'none', cursor: 'pointer' }}>
