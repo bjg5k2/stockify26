@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
 
 const ARTIST_POOL = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -314,9 +315,31 @@ export default function HomePage() {
     router.push('/')
   }
 
+  const CARD_HEIGHT = '660px'
+  const MOVER_HEIGHT = '380px'
+
   if (loading) return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
-      <p style={{ color: '#555' }}>Loading...</p>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
+      <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
+      </nav>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr 1fr', gap: '20px', padding: '24px 48px' }}>
+        <Skeleton height={CARD_HEIGHT} borderRadius="14px" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} height="90px" borderRadius="12px" />)}
+          </div>
+          <Skeleton height="100px" borderRadius="12px" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <Skeleton height={MOVER_HEIGHT} borderRadius="14px" />
+            <Skeleton height={MOVER_HEIGHT} borderRadius="14px" />
+          </div>
+        </div>
+        <Skeleton height={CARD_HEIGHT} borderRadius="14px" />
+      </div>
     </main>
   )
 
@@ -330,15 +353,15 @@ export default function HomePage() {
     overflow: 'hidden',
   })
 
-  const CARD_HEIGHT = '660px'
-  const MOVER_HEIGHT = '380px'
-
   return (
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
+        <div onClick={() => router.push('/home')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+          <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500' }}>Stockify</div>
+          <EQVisualizer />
+        </div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
@@ -360,6 +383,7 @@ export default function HomePage() {
         {artistOfDay && (
           <div
             onClick={() => router.push(`/artist/${artistOfDay.id}`)}
+            className="card-hover"
             style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: CARD_HEIGHT, background: '#111', display: 'flex', flexDirection: 'column' }}
           >
             {artistOfDay.image && (
@@ -383,7 +407,7 @@ export default function HomePage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
                 <div>
                   <div>
-                    <span style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}>{aodPrice?.toLocaleString()}</span>
+                    <span style={{ color: '#fff', fontSize: '17px', fontWeight: '600' }}><AnimatedNumber value={aodPrice || 0} /></span>
                     <span style={{ color: '#4ade80', fontSize: '11px', fontWeight: '500' }}> CR</span>
                   </div>
                   {aodStats.priceChangePct !== null && (
@@ -406,13 +430,15 @@ export default function HomePage() {
           {/* Platform Stats row of 4 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
             {[
-              { label: 'Total CR Invested', val: `${Math.round(stats.totalInvested).toLocaleString()} CR`, color: '#4ade80' },
-              { label: 'Total Users', val: stats.totalUsers.toLocaleString(), color: '#fff' },
-              { label: 'Badges Awarded', val: stats.totalBadges.toLocaleString(), color: '#fbbf24' },
-              { label: 'Artists Tracked', val: stats.totalArtists.toLocaleString(), color: '#fff' },
+              { label: 'Total CR Invested', val: Math.round(stats.totalInvested), suffix: ' CR', color: '#4ade80' },
+              { label: 'Total Users', val: stats.totalUsers, suffix: '', color: '#fff' },
+              { label: 'Badges Awarded', val: stats.totalBadges, suffix: '', color: '#fbbf24' },
+              { label: 'Artists Tracked', val: stats.totalArtists, suffix: '', color: '#fff' },
             ].map(s => (
-              <div key={s.label} style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', textAlign: 'center' }}>
-                <div style={{ color: s.color, fontSize: '24px', fontWeight: '600' }}>{s.val}</div>
+              <div key={s.label} className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', textAlign: 'center' }}>
+                <div style={{ color: s.color, fontSize: '24px', fontWeight: '600' }}>
+                  <AnimatedNumber value={s.val} />{s.suffix}
+                </div>
                 <div style={{ color: '#555', fontSize: '11px', marginTop: '6px', letterSpacing: '0.5px' }}>{s.label}</div>
               </div>
             ))}
@@ -420,7 +446,7 @@ export default function HomePage() {
 
           {/* Daily Challenges */}
           {dailyChallenges.length > 0 && (
-            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '14px 18px' }}>
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '14px 18px' }}>
               <div style={{ color: '#888', fontSize: '10px', letterSpacing: '1px', marginBottom: '10px' }}>DAILY CHALLENGES</div>
               {dailyChallenges.map((c, i) => (
                 <div key={c.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < dailyChallenges.length - 1 ? '0.5px solid #141414' : 'none' }}>
@@ -441,6 +467,7 @@ export default function HomePage() {
             {winner ? (
               <div
                 onClick={() => router.push(`/artist/${winner.artist_id}`)}
+                className="card-hover"
                 style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: MOVER_HEIGHT, background: '#111' }}
               >
                 {winner.image && (
@@ -457,7 +484,7 @@ export default function HomePage() {
                 </div>
               </div>
             ) : (
-              <div style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
+              <div className="card-hover" style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
                 Not enough data yet for Heating Up
               </div>
             )}
@@ -465,6 +492,7 @@ export default function HomePage() {
             {loser ? (
               <div
                 onClick={() => router.push(`/artist/${loser.artist_id}`)}
+                className="card-hover"
                 style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', height: MOVER_HEIGHT, background: '#111' }}
               >
                 {loser.image && (
@@ -483,7 +511,7 @@ export default function HomePage() {
                 </div>
               </div>
             ) : (
-              <div style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
+              <div className="card-hover" style={{ borderRadius: '14px', height: MOVER_HEIGHT, background: '#0f0f0f', border: '0.5px dashed #2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444', fontSize: '13px', textAlign: 'center', padding: '16px' }}>
                 Not enough data yet for Cooling Off
               </div>
             )}
@@ -492,7 +520,10 @@ export default function HomePage() {
 
         {/* Col 3 (20%): Live Activity Feed */}
         <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '14px', padding: '18px', height: CARD_HEIGHT, overflow: 'auto' }}>
-          <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px', marginBottom: '14px' }}>LIVE ACTIVITY</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <LiveDot />
+            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '1px' }}>LIVE ACTIVITY</div>
+          </div>
           {feed.length === 0 ? (
             <p style={{ color: '#444', fontSize: '13px' }}>No activity yet.</p>
           ) : (
