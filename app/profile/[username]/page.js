@@ -116,23 +116,31 @@ export default function ProfilePage() {
         .slice(0, 10)
       setActivity(merged)
 
-      const { data: allSnapshots } = await supabase
-        .from('portfolio_snapshots')
-        .select('*')
-        .order('snapshot_date', { ascending: false })
+      // Calculate leaderboard rank from latest portfolio snapshots, excluding admin accounts
+      if (!profileData.is_admin) {
+        const { data: adminProfiles } = await supabase
+          .from('profiles').select('id').eq('is_admin', true)
+        const adminIds = (adminProfiles || []).map(p => p.id)
 
-      const latestByUser = {}
-      for (const s of allSnapshots || []) {
-        if (!latestByUser[s.user_id]) latestByUser[s.user_id] = s
-      }
-      const ranked = Object.entries(latestByUser)
-        .map(([uid, s]) => ({ uid, netWorth: (s.total_value || 0) + (s.credits || 0) }))
-        .sort((a, b) => b.netWorth - a.netWorth)
+        const { data: allSnapshots } = await supabase
+          .from('portfolio_snapshots')
+          .select('*')
+          .order('snapshot_date', { ascending: false })
 
-      const userRank = ranked.findIndex(r => r.uid === profileData.id)
-      if (userRank !== -1) {
-        setRank(userRank + 1)
-        setTotalUsers(ranked.length)
+        const latestByUser = {}
+        for (const s of allSnapshots || []) {
+          if (adminIds.includes(s.user_id)) continue
+          if (!latestByUser[s.user_id]) latestByUser[s.user_id] = s
+        }
+        const ranked = Object.entries(latestByUser)
+          .map(([uid, s]) => ({ uid, netWorth: (s.total_value || 0) + (s.credits || 0) }))
+          .sort((a, b) => b.netWorth - a.netWorth)
+
+        const userRank = ranked.findIndex(r => r.uid === profileData.id)
+        if (userRank !== -1) {
+          setRank(userRank + 1)
+          setTotalUsers(ranked.length)
+        }
       }
 
       setLoading(false)
@@ -208,9 +216,10 @@ export default function ProfilePage() {
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
           <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
+          <span onClick={() => router.push('/leaderboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
           <span
             onClick={() => router.push(`/profile/${myProfile?.username}`)}
             style={{ color: isOwnProfile ? '#fff' : '#666', fontSize: '16px', fontWeight: isOwnProfile ? '500' : '400', cursor: 'pointer' }}
@@ -238,6 +247,11 @@ export default function ProfilePage() {
               {isOwnProfile && (
                 <span style={{ background: 'rgba(74,222,128,0.1)', border: '0.5px solid #1a4a2a', color: '#4ade80', fontSize: '11px', fontWeight: '500', padding: '4px 10px', borderRadius: '6px' }}>
                   This is you
+                </span>
+              )}
+              {profile.is_admin && (
+                <span style={{ background: 'rgba(251,191,36,0.1)', border: '0.5px solid #3a3a0a', color: '#fbbf24', fontSize: '11px', fontWeight: '500', padding: '4px 10px', borderRadius: '6px' }}>
+                  Admin
                 </span>
               )}
             </div>

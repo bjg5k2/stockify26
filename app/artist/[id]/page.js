@@ -12,6 +12,7 @@ export default function ArtistPage() {
   const [priceHistory, setPriceHistory] = useState([])
   const [topInvestors, setTopInvestors] = useState([])
   const [totalInvestors, setTotalInvestors] = useState(0)
+  const [adminIds, setAdminIds] = useState([])
   const [bio, setBio] = useState(null)
   const [tradeType, setTradeType] = useState('buy')
   const [buyMode, setBuyMode] = useState('cr')
@@ -32,6 +33,11 @@ export default function ArtistPage() {
         .from('profiles').select('*').eq('id', user.id).single()
       setProfile(profileData)
 
+      const { data: adminProfiles } = await supabase
+        .from('profiles').select('id').eq('is_admin', true)
+      const adminUserIds = (adminProfiles || []).map(p => p.id)
+      setAdminIds(adminUserIds)
+
       const { data: holdingData } = await supabase
         .from('holdings').select('*').eq('user_id', user.id).eq('artist_id', id).single()
       setHolding(holdingData || null)
@@ -45,24 +51,25 @@ export default function ArtistPage() {
         .from('artist_snapshots').select('*').eq('artist_id', id)
         .order('snapshot_date', { ascending: true })
       if (snapData && snapData.length > 0) {
-  setPriceHistory(snapData.map(s => {
-    const pop = s.popularity ?? 91
-    return {
-      date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-      price: Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
-    }
-  }))
-}
-      
+        setPriceHistory(snapData.map(s => {
+          const pop = s.popularity ?? 91
+          return {
+            date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
+            price: Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
+          }
+        }))
+      }
 
       const { data: allHoldings } = await supabase
         .from('holdings').select('user_id, shares').eq('artist_id', id)
-        .order('shares', { ascending: false }).limit(5)
+        .order('shares', { ascending: false })
 
-      if (allHoldings && allHoldings.length > 0) {
-        setTotalInvestors(allHoldings.length)
+      const realHoldings = (allHoldings || []).filter(h => !adminUserIds.includes(h.user_id))
+
+      if (realHoldings.length > 0) {
+        setTotalInvestors(realHoldings.length)
         const investorProfiles = await Promise.all(
-          allHoldings.map(async h => {
+          realHoldings.slice(0, 5).map(async h => {
             const { data: p } = await supabase
               .from('profiles').select('username').eq('id', h.user_id).single()
             return { username: p?.username || 'unknown', shares: h.shares, userId: h.user_id }
@@ -146,12 +153,17 @@ export default function ArtistPage() {
     const { data: { user } } = await supabase.auth.getUser()
 
     let isFirstInvestor = false
+    let isNewInvestor = false
     if (!holding) {
-      const { count } = await supabase
-        .from('holdings')
-        .select('*', { count: 'exact', head: true })
-        .eq('artist_id', artist.id)
-      if (count === 0) isFirstInvestor = true
+      isNewInvestor = !profile.is_admin
+      if (!profile.is_admin) {
+        const { data: existingHoldings } = await supabase
+          .from('holdings')
+          .select('user_id')
+          .eq('artist_id', artist.id)
+        const realExisting = (existingHoldings || []).filter(h => !adminIds.includes(h.user_id))
+        if (realExisting.length === 0) isFirstInvestor = true
+      }
     }
 
     if (holding) {
@@ -169,13 +181,14 @@ export default function ArtistPage() {
     }).select().single()
     setTransactions([tx, ...transactions])
 
+    if (isNewInvestor) setTotalInvestors(prev => prev + 1)
+
     let bonus = 0
     if (isFirstInvestor) {
       bonus = 500
       await supabase.from('badges').insert({
         user_id: user.id, badge_type: 'first_investor', artist_id: artist.id, artist_name: artist.name
       })
-      setTotalInvestors(prev => prev + 1)
     }
 
     const newCredits = profile.credits - cost + bonus
@@ -201,6 +214,7 @@ export default function ArtistPage() {
     if (holding.shares - sharesToSell <= 0.0001) {
       await supabase.from('holdings').delete().eq('id', holding.id)
       setHolding(null)
+      if (!profile.is_admin) setTotalInvestors(prev => Math.max(0, prev - 1))
     } else {
       await supabase.from('holdings').update({ shares: holding.shares - sharesToSell }).eq('id', holding.id)
       setHolding({ ...holding, shares: holding.shares - sharesToSell })
@@ -214,6 +228,11 @@ export default function ArtistPage() {
     setProfile({ ...profile, credits: profile.credits + returnAmount })
     setSellInput('')
     showMessage(`Sold ${sharesToSell.toFixed(2)} shares for ${returnAmount.toLocaleString()} CR!`)
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
   }
 
   if (loading) return (
@@ -263,21 +282,25 @@ export default function ArtistPage() {
     outline: 'none'
   }
 
+  const initials = profile?.username?.slice(0, 2).toUpperCase() || 'U'
+
   return (
     <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+        <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
           <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
-          <span style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{ color: '#fff', fontWeight: '500', fontSize: '16px' }}>{profile?.credits?.toLocaleString()}</span>
-            <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>CR</span>
+          <span onClick={() => router.push('/leaderboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
+          <span onClick={() => router.push(`/profile/${profile?.username}`)} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Profile</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{initials}</div>
+            <span style={{ color: '#aaa', fontSize: '16px' }}>{profile?.username}</span>
           </div>
-          <button onClick={() => router.back()} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>← Back</button>
+          <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
       </nav>
 
@@ -440,11 +463,13 @@ export default function ArtistPage() {
                   <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
                 </div>
                 {buyInput > 0 && <div style={{ color: '#555', fontSize: '12px' }}>≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR</div>}
-                <div style={{ color: totalInvestors === 0 ? '#fbbf24' : '#555', fontSize: '12px', marginTop: '8px' }}>
-                  {totalInvestors === 0
-                    ? `🏆 Be the first to invest in ${artist.name} and earn a badge + 500 CR bonus!`
-                    : `${totalInvestors} user${totalInvestors !== 1 ? 's' : ''} invested`}
-                </div>
+                {!profile?.is_admin && (
+                  <div style={{ color: totalInvestors === 0 ? '#fbbf24' : '#555', fontSize: '12px', marginTop: '8px' }}>
+                    {totalInvestors === 0
+                      ? `🏆 Be the first to invest in ${artist.name} and earn a badge + 500 CR bonus!`
+                      : `${totalInvestors} user${totalInvestors !== 1 ? 's' : ''} invested`}
+                  </div>
+                )}
               </>
             )}
 

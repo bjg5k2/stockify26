@@ -19,7 +19,9 @@ export default function LeaderboardPage() {
       setMyProfile(myProfileData)
 
       const { data: allProfiles } = await supabase
-        .from('profiles').select('id, username, credits')
+        .from('profiles').select('id, username, credits, is_admin')
+
+      const realProfiles = (allProfiles || []).filter(p => !p.is_admin)
 
       const { data: allHoldings } = await supabase
         .from('holdings').select('user_id, artist_id, shares, buy_price')
@@ -50,7 +52,7 @@ export default function LeaderboardPage() {
         holdingsByUser[h.user_id].push(h)
       })
 
-      const rankedList = (allProfiles || []).map(p => {
+      const rankedList = realProfiles.map(p => {
         const userHoldings = holdingsByUser[p.id] || []
         const portfolioValue = userHoldings.reduce((sum, h) => {
           const artist = artistMap[h.artist_id]
@@ -95,6 +97,7 @@ export default function LeaderboardPage() {
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ color: '#4ade80', fontSize: '26px', fontWeight: '500', cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Stockify</div>
         <div style={{ display: 'flex', gap: '36px', alignItems: 'center' }}>
+          <span onClick={() => router.push('/home')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Home</span>
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
           <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
           <span style={{ color: '#fff', fontSize: '16px', fontWeight: '500', cursor: 'pointer' }}>Leaderboard</span>

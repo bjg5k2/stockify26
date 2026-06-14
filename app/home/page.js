@@ -50,6 +50,10 @@ export default function HomePage() {
         .from('profiles').select('*').eq('id', user.id).single()
       setMyProfile(myProfileData)
 
+      const { data: adminProfiles } = await supabase
+        .from('profiles').select('id').eq('is_admin', true)
+      const adminIds = (adminProfiles || []).map(p => p.id)
+
       const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000)
       const pick = ARTIST_POOL[dayOfYear % ARTIST_POOL.length]
       const res = await fetch(`/api/artist?id=${pick.id}`)
@@ -61,7 +65,7 @@ export default function HomePage() {
         setBio(bioData.bio)
       }
 
-      const { data: allProfiles } = await supabase.from('profiles').select('id')
+      const { data: allProfiles } = await supabase.from('profiles').select('id, is_admin')
       const { data: allHoldings } = await supabase.from('holdings').select('artist_id, shares, buy_price')
       const { data: allBadges } = await supabase.from('badges').select('id')
       const { data: snapshotsAll } = await supabase
@@ -74,7 +78,7 @@ export default function HomePage() {
 
       setStats({
         totalInvested,
-        totalUsers: (allProfiles || []).length,
+        totalUsers: (allProfiles || []).filter(p => !p.is_admin).length,
         totalBadges: (allBadges || []).length,
         totalArtists: uniqueArtists.size,
       })
@@ -112,22 +116,26 @@ export default function HomePage() {
         }
       }
 
+      // Global Activity Feed — exclude admin
       const { data: txData } = await supabase
         .from('transactions').select('*')
-        .order('created_at', { ascending: false }).limit(15)
+        .order('created_at', { ascending: false }).limit(20)
 
       const { data: badgeData } = await supabase
         .from('badges').select('*')
-        .order('awarded_at', { ascending: false }).limit(15)
+        .order('awarded_at', { ascending: false }).limit(20)
 
-      const userIds = [...new Set([...(txData || []).map(t => t.user_id), ...(badgeData || []).map(b => b.user_id)])]
+      const realTx = (txData || []).filter(t => !adminIds.includes(t.user_id))
+      const realBadges = (badgeData || []).filter(b => !adminIds.includes(b.user_id))
+
+      const userIds = [...new Set([...realTx.map(t => t.user_id), ...realBadges.map(b => b.user_id)])]
       const { data: profilesData } = await supabase
         .from('profiles').select('id, username').in('id', userIds)
 
       const usernameMap = {}
       ;(profilesData || []).forEach(p => { usernameMap[p.id] = p.username })
 
-      const txItems = (txData || []).map(tx => ({
+      const txItems = realTx.map(tx => ({
         type: tx.type,
         username: usernameMap[tx.user_id] || 'unknown',
         artist_name: tx.artist_name,
@@ -135,7 +143,7 @@ export default function HomePage() {
         total: tx.total,
         timestamp: tx.created_at,
       }))
-      const badgeItems = (badgeData || []).map(b => ({
+      const badgeItems = realBadges.map(b => ({
         type: 'badge',
         username: usernameMap[b.user_id] || 'unknown',
         artist_name: b.artist_name,
