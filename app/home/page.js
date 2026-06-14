@@ -9,7 +9,7 @@ const ARTIST_POOL = [
   { id: '3l0CmX0FuQjFxr8SK7Vqag', name: 'Clairo' },
   { id: '3TVXtAsR1Inumwj472S9r4', name: 'Drake' },
   { id: '4lxfqrEsLX6N1N4OCSkILp', name: 'Phil Collins' },
-  { id: '6yJCxee7QumYr820xdIsjo', name: 'Zach Top' },
+  { id: '4FGPzWzgjURDNT7JQ8pYgH', name: 'Zach Top' },
 ]
 
 const CHALLENGES = [
