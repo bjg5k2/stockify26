@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../../components/FX'
+import { EQVisualizer, AnimatedNumber, Skeleton, useFlash, MarketFooter } from '../../components/FX'
 
 export default function ArtistPage() {
   const [artist, setArtist] = useState(null)
@@ -313,7 +313,7 @@ export default function ArtistPage() {
   const initials = profile?.username?.slice(0, 2).toUpperCase() || 'U'
 
   return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff', paddingBottom: '42px' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -625,6 +625,8 @@ export default function ArtistPage() {
           )}
         </div>
       </div>
+
+      <MarketFooter />
     </main>
   )
 }

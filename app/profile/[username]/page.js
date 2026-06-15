@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../../components/FX'
 
 function timeAgo(dateStr) {
   const date = new Date(dateStr)
@@ -304,7 +304,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 320px', gap: '20px', padding: '24px 48px', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 320px', gap: '20px', padding: '24px 48px 66px', overflow: 'hidden', minHeight: 0 }}>
 
         {/* Col 1: Top Holdings (3x2 grid of cards) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflow: 'hidden' }}>
@@ -410,7 +410,7 @@ export default function ProfilePage() {
                   text = <>Bought <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
                 } else if (a.type === 'sell') {
                   icon = '↓'; iconBg = '#1a0a0a'; iconColor = '#f87171'
-                  text = <>Sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
+                  text = <>Sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2) } shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
                 } else {
                   icon = '🏆'; iconBg = '#1a1a0a'; iconColor = '#fbbf24'
                   text = <>Earned <b style={{ color: '#fff' }}>First Investor</b> badge for <b style={{ color: '#fff' }}>{a.artist_name}</b> + 500 CR</>
@@ -430,6 +430,8 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      <MarketFooter />
     </main>
   )
 }

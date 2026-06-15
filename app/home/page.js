@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
 
 const ARTIST_POOL = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -354,7 +354,7 @@ export default function HomePage() {
   })
 
   return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff', paddingBottom: '42px' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -553,6 +553,8 @@ export default function HomePage() {
         </div>
 
       </div>
+
+      <MarketFooter />
     </main>
   )
 }

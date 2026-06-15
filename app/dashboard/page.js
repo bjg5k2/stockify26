@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../components/FX'
+import { EQVisualizer, AnimatedNumber, Skeleton, useFlash, MarketFooter } from '../components/FX'
 
 export default function Dashboard() {
   const [profile, setProfile] = useState(null)
@@ -370,13 +370,13 @@ export default function Dashboard() {
       </nav>
 
       {/* Body */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', flex: 1, minHeight: 0, paddingBottom: '42px' }}>
 
         {/* Main */}
         <div style={{ padding: '32px 48px', borderRight: '0.5px solid #141414', overflow: 'auto' }}>
 
           <div style={{ color: '#555', fontSize: '11px', letterSpacing: '1px', marginBottom: '12px' }}>PORTFOLIO OVERVIEW</div>
-          <div className={flashClass} style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px', borderRadius: '8px', display: 'inline-flex' }}>
+          <div className={flashClass} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px', borderRadius: '8px' }}>
             <span style={{ color: '#fff', fontSize: '52px', fontWeight: '500', letterSpacing: '-2px' }}><AnimatedNumber value={Math.round(totalValue)} /></span>
             <span style={{ color: '#4ade80', fontSize: '28px', fontWeight: '500' }}>CR</span>
           </div>
@@ -661,6 +661,8 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+
+      <MarketFooter />
     </main>
   )
 }

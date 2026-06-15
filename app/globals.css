@@ -77,3 +77,8 @@ input[type=number] {
 
 .flash-green { animation: flashGreen 0.6s ease-out; }
 .flash-red { animation: flashRed 0.6s ease-out; }
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

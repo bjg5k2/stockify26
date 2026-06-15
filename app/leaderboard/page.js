@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, AnimatedNumber, Skeleton } from '../components/FX'
+import { EQVisualizer, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
 
 export default function LeaderboardPage() {
   const [myProfile, setMyProfile] = useState(null)
@@ -131,7 +131,7 @@ export default function LeaderboardPage() {
         </div>
       </nav>
 
-      <div style={{ flex: 1, overflow: 'auto', padding: '32px 48px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '32px 48px 74px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
 
           <h1 style={{ color: '#fff', fontSize: '32px', fontWeight: '600', letterSpacing: '-0.5px', marginBottom: '8px' }}>Leaderboard</h1>
@@ -200,6 +200,8 @@ export default function LeaderboardPage() {
 
         </div>
       </div>
+
+      <MarketFooter />
     </main>
   )
 }

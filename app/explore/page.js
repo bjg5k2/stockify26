@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
 
 const FEATURED_IDS = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -170,7 +170,7 @@ export default function Explore() {
   const cardStyle = { position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '2/3', maxHeight: '200px', border: '0.5px solid #1c1c1c', cursor: 'pointer', background: '#111' }
 
   return (
-    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff' }}>
+    <main style={{ background: '#0a0a0a', minHeight: '100vh', fontFamily: 'sans-serif', color: '#fff', paddingBottom: '42px' }}>
 
       {/* Navbar */}
       <nav style={{ borderBottom: '0.5px solid #1a1a1a', padding: '20px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -389,6 +389,8 @@ export default function Explore() {
           </>
         )}
       </div>
+
+      <MarketFooter />
     </main>
   )
 }
