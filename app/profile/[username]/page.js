@@ -117,30 +117,44 @@ export default function ProfilePage() {
         .slice(0, 10)
       setActivity(merged)
 
-      // Calculate leaderboard rank from latest portfolio snapshots, excluding admin accounts
+      // Calculate leaderboard rank live, matching the leaderboard page's logic
       if (!profileData.is_admin) {
-        const { data: adminProfiles } = await supabase
-          .from('profiles').select('id').eq('is_admin', true)
-        const adminIds = (adminProfiles || []).map(p => p.id)
+        const { data: allProfiles } = await supabase
+          .from('profiles').select('id, credits, is_admin')
+        const realProfiles = (allProfiles || []).filter(p => !p.is_admin)
 
-        const { data: allSnapshots } = await supabase
-          .from('portfolio_snapshots')
-          .select('*')
-          .order('snapshot_date', { ascending: false })
+        const { data: allHoldingsForRank } = await supabase
+          .from('holdings').select('user_id, artist_id, shares')
 
-        const latestByUser = {}
-        for (const s of allSnapshots || []) {
-          if (adminIds.includes(s.user_id)) continue
-          if (!latestByUser[s.user_id]) latestByUser[s.user_id] = s
-        }
-        const ranked = Object.entries(latestByUser)
-          .map(([uid, s]) => ({ uid, netWorth: (s.total_value || 0) + (s.credits || 0) }))
-          .sort((a, b) => b.netWorth - a.netWorth)
+        const uniqueArtistIds = [...new Set((allHoldingsForRank || []).map(h => h.artist_id))]
+        const rankArtistMap = {}
+        await Promise.all(
+          uniqueArtistIds.map(async aid => {
+            const res = await fetch(`/api/artist?id=${aid}`)
+            const data = await res.json()
+            if (data.artist) rankArtistMap[aid] = data.artist
+          })
+        )
 
-        const userRank = ranked.findIndex(r => r.uid === profileData.id)
+        const holdingsByUserForRank = {}
+        ;(allHoldingsForRank || []).forEach(h => {
+          if (!holdingsByUserForRank[h.user_id]) holdingsByUserForRank[h.user_id] = []
+          holdingsByUserForRank[h.user_id].push(h)
+        })
+
+        const rankedList = realProfiles.map(p => {
+          const userHoldings = holdingsByUserForRank[p.id] || []
+          const portfolioValue = userHoldings.reduce((sum, h) => {
+            const a = rankArtistMap[h.artist_id]
+            return sum + (a ? h.shares * getPrice(a) : 0)
+          }, 0)
+          return { uid: p.id, netWorth: (p.credits || 0) + portfolioValue }
+        }).sort((a, b) => b.netWorth - a.netWorth)
+
+        const userRank = rankedList.findIndex(r => r.uid === profileData.id)
         if (userRank !== -1) {
           setRank(userRank + 1)
-          setTotalUsers(ranked.length)
+          setTotalUsers(rankedList.length)
         }
       }
 
