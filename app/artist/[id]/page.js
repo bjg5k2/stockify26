@@ -56,8 +56,7 @@ export default function ArtistPage() {
           const pop = s.popularity ?? 91
           return {
             date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-            price: Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
-          }
+price: Math.max(1, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))          }
         }))
       }
 
@@ -94,10 +93,9 @@ export default function ArtistPage() {
     getData()
   }, [id])
 
-  const getPrice = (a) => {
-    return Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10)
+const getPrice = (a) => {
+    return Math.max(1, Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10))
   }
-
   const showMessage = (text, success = true) => {
     setMessage({ text, success })
     setTimeout(() => setMessage({ text: '', success: true }), 4000)
@@ -342,9 +340,9 @@ export default function ArtistPage() {
         <div style={{ padding: '28px 40px', borderRight: '0.5px solid #141414', overflow: 'auto' }}>
 
           {/* Artist Header */}
-          <div style={{ marginBottom: '28px', paddingBottom: '24px', borderBottom: '0.5px solid #141414' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              {artist.image ? (
+{/* Artist Header */}
+          <div style={{ marginBottom: '28px', padding: '24px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(74,222,128,0.08), rgba(10,10,10,0.4))', border: '0.5px solid rgba(74,222,128,0.18)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(74,222,128,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>              {artist.image ? (
                 <img src={artist.image} alt={artist.name} style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #1a4a2a' }} />
               ) : (
                 <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', flexShrink: 0 }}>🎵</div>
@@ -367,6 +365,14 @@ export default function ArtistPage() {
                   <span style={{ color: '#4ade80', fontSize: '22px', fontWeight: '500' }}>CR</span>
                 </div>
                 <p style={{ color: '#555', fontSize: '13px' }}>per share</p>
+              </div>
+
+<div style={{ width: '0.5px', height: '50px', background: '#1c1c1c', flexShrink: 0 }} />              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', justifyContent: 'flex-end' }}>
+                  <span style={{ color: '#fff', fontSize: '42px', fontWeight: '500', letterSpacing: '-1px' }}><AnimatedNumber value={profile?.credits || 0} /></span>
+                  <span style={{ color: '#4ade80', fontSize: '22px', fontWeight: '500' }}>CR</span>
+                </div>
+                <p style={{ color: '#555', fontSize: '13px' }}>your balance</p>
               </div>
             </div>
           </div>
@@ -574,10 +580,10 @@ export default function ArtistPage() {
         {/* Right Panel */}
         <div style={{ padding: '28px 24px', overflow: 'auto' }}>
 
+          
           {/* Artist Stats */}
           <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
-            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ARTIST STATS</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+            <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ARTIST STATS</div><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
               <span style={{ color: '#555', fontSize: '13px' }}>Followers</span>
               <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}><AnimatedNumber value={artist.followers} /></span>
             </div>

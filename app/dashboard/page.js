@@ -102,10 +102,9 @@ export default function Dashboard() {
     getData()
   }, [])
 
-  const getPrice = (artist) => {
-    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
+const getPrice = (artist) => {
+    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
-
   const getTotalValue = () => holdings.reduce((total, h) => {
     const artist = artistData[h.artist_id]
     if (!artist) return total

@@ -6,7 +6,7 @@ const supabase = createClient(
 )
 
 function getPrice(followers, popularity) {
-  return Math.round((Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10)
+  return Math.max(1, Math.round((Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10))
 }
 
 export async function GET() {

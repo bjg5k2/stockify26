@@ -90,10 +90,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const getPrice = (artist) => {
-    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
+const getPrice = (artist) => {
+    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
-
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -138,9 +137,9 @@ export default function HomePage() {
         .order('snapshot_date', { ascending: true })
       let priceChangePct = null
       if (aodSnaps && aodSnaps.length >= 2) {
-        const getP = (s) => {
+const getP = (s) => {
           const pop = s.popularity ?? 91
-          return Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10)
+          return Math.max(1, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))
         }
         const firstPrice = getP(aodSnaps[0])
         const lastPrice = getP(aodSnaps[aodSnaps.length - 1])

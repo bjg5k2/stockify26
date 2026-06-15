@@ -141,10 +141,9 @@ export default function Explore() {
     init()
   }, [])
 
-  const getPrice = (artist) => {
-    return Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10)
+const getPrice = (artist) => {
+    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
-
   const searchArtists = async (q) => {
     const searchQuery = q !== undefined ? q : query
     if (!searchQuery) return
