@@ -186,7 +186,7 @@ export default function ArtistPage() {
 
     let bonus = 0
     if (isFirstInvestor) {
-      bonus = 500
+      bonus = 50
       await supabase.from('badges').insert({
         user_id: user.id, badge_type: 'first_investor', artist_id: artist.id, artist_name: artist.name
       })
@@ -198,7 +198,7 @@ export default function ArtistPage() {
     setBuyInput('')
 
     if (isFirstInvestor) {
-      showMessage(`🏆 First Investor! Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR + 500 CR bonus!`)
+      showMessage(`🏆 First Investor! Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR + 50 CR bonus!`)
     } else {
       showMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
     }

@@ -413,7 +413,7 @@ export default function ProfilePage() {
                   text = <>Sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2) } shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
                 } else {
                   icon = '🏆'; iconBg = '#1a1a0a'; iconColor = '#fbbf24'
-                  text = <>Earned <b style={{ color: '#fff' }}>First Investor</b> badge for <b style={{ color: '#fff' }}>{a.artist_name}</b> + 500 CR</>
+                  text = <>Earned <b style={{ color: '#fff' }}>First Investor</b> badge for <b style={{ color: '#fff' }}>{a.artist_name}</b> + 50 CR</>
                 }
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: i < activity.length - 1 ? '0.5px solid #141414' : 'none' }}>
