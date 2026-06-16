@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
 
 const FEATURED_IDS = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -142,7 +142,7 @@ export default function Explore() {
   }, [])
 
 const getPrice = (artist) => {
-    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+    return Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
   const searchArtists = async (q) => {
     const searchQuery = q !== undefined ? q : query
@@ -389,7 +389,6 @@ const getPrice = (artist) => {
         )}
       </div>
 
-      <MarketFooter />
     </main>
   )
 }

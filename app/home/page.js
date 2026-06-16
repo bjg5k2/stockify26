@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
 
 const ARTIST_POOL = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -11,56 +11,6 @@ const ARTIST_POOL = [
   { id: '3TVXtAsR1Inumwj472S9r4', name: 'Drake' },
   { id: '4lxfqrEsLX6N1N4OCSkILp', name: 'Phil Collins' },
   { id: '4FGPzWzgjURDNT7JQ8pYgH', name: 'Zach Top' },
-]
-
-const CHALLENGES = [
-  {
-    type: 'three_artists',
-    description: 'Invest in 3 or more different artists today',
-    reward: 100,
-    check: async (ctx) => new Set(ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id)).size >= 3,
-  },
-  {
-    type: 'three_trades',
-    description: 'Make 3 or more trades today',
-    reward: 50,
-    check: async (ctx) => ctx.todayTx.length >= 3,
-  },
-  {
-    type: 'new_artist',
-    description: "Invest in an artist you haven't before",
-    reward: 75,
-    check: async (ctx) => {
-      const todayBuyIds = ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id)
-      return todayBuyIds.some(id => !ctx.priorArtistIds.has(id))
-    },
-  },
-  {
-    type: 'bargain',
-    description: 'Invest in an artist priced under 500 CR',
-    reward: 50,
-    check: async (ctx) => ctx.todayTx.some(t => t.type === 'buy' && t.price_per_share < 500),
-  },
-  {
-    type: 'underdog',
-    description: 'Invest in an artist with under 100K followers',
-    reward: 125,
-    check: async (ctx) => {
-      const ids = [...new Set(ctx.todayTx.filter(t => t.type === 'buy').map(t => t.artist_id))]
-      for (const id of ids) {
-        const res = await fetch(`/api/artist?id=${id}`)
-        const data = await res.json()
-        if (data.artist && data.artist.followers < 100000) return true
-      }
-      return false
-    },
-  },
-  {
-    type: 'first_investor_today',
-    description: 'Be the first investor in an artist',
-    reward: 100,
-    check: async (ctx) => ctx.firstInvestorToday,
-  },
 ]
 
 function timeAgo(dateStr) {
@@ -91,7 +41,7 @@ export default function HomePage() {
   const router = useRouter()
 
 const getPrice = (artist) => {
-    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+    return Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
   useEffect(() => {
     const init = async () => {
@@ -139,7 +89,7 @@ const getPrice = (artist) => {
       if (aodSnaps && aodSnaps.length >= 2) {
 const getP = (s) => {
           const pop = s.popularity ?? 91
-          return Math.max(1, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))
+          return Math.max(10, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))
         }
         const firstPrice = getP(aodSnaps[0])
         const lastPrice = getP(aodSnaps[aodSnaps.length - 1])
@@ -153,68 +103,17 @@ const getP = (s) => {
         priceChangePct,
       })
 
-      // Daily Challenges — rotate 3 of 6, overlapping windows
-      const todaysChallenges = [0, 1, 2].map(i => CHALLENGES[(dayOfYear + i) % CHALLENGES.length])
-      const todayStr = new Date().toISOString().split('T')[0]
-      const startOfDay = new Date()
-      startOfDay.setHours(0, 0, 0, 0)
-
-      const { data: todayTx } = await supabase
-        .from('transactions').select('*').eq('user_id', user.id)
-        .gte('created_at', startOfDay.toISOString())
-
-      let priorArtistIds = new Set()
-      if (todaysChallenges.some(c => c.type === 'new_artist')) {
-        const { data: priorTx } = await supabase
-          .from('transactions').select('artist_id').eq('user_id', user.id)
-          .lt('created_at', startOfDay.toISOString())
-        priorArtistIds = new Set((priorTx || []).map(t => t.artist_id))
+      // Daily Challenges
+      const { data: { session } } = await supabase.auth.getSession()
+      const claimRes = await fetch('/api/challenges/claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const claimData = await claimRes.json()
+      setDailyChallenges(claimData.challenges || [])
+      if (claimData.new_credits !== myProfileData.credits) {
+        setMyProfile({ ...myProfileData, credits: claimData.new_credits })
       }
-
-      let firstInvestorToday = false
-      if (todaysChallenges.some(c => c.type === 'first_investor_today')) {
-        const { data: todayBadges } = await supabase
-          .from('badges').select('id').eq('user_id', user.id).eq('badge_type', 'first_investor')
-          .gte('awarded_at', startOfDay.toISOString())
-        firstInvestorToday = (todayBadges || []).length > 0
-      }
-
-      const ctx = { todayTx: todayTx || [], priorArtistIds, firstInvestorToday }
-
-      let currentCredits = myProfileData.credits || 0
-      const resolvedChallenges = []
-      for (const challenge of todaysChallenges) {
-        const { data: existing } = await supabase
-          .from('daily_challenge_completions').select('*')
-          .eq('user_id', user.id).eq('completion_date', todayStr).eq('challenge_type', challenge.type)
-          .maybeSingle()
-
-        if (existing) {
-          resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: existing.reward })
-          continue
-        }
-
-        const met = await challenge.check(ctx)
-        if (met) {
-          try {
-            await supabase.from('daily_challenge_completions').insert({
-              user_id: user.id, completion_date: todayStr, challenge_type: challenge.type, reward: challenge.reward,
-            })
-            currentCredits += challenge.reward
-            resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: challenge.reward })
-          } catch {
-            resolvedChallenges.push({ ...challenge, completed: true, rewardEarned: challenge.reward })
-          }
-        } else {
-          resolvedChallenges.push({ ...challenge, completed: false, rewardEarned: 0 })
-        }
-      }
-
-      if (currentCredits !== (myProfileData.credits || 0)) {
-        await supabase.from('profiles').update({ credits: currentCredits }).eq('id', user.id)
-        setMyProfile({ ...myProfileData, credits: currentCredits })
-      }
-      setDailyChallenges(resolvedChallenges)
 
       const { data: allProfiles } = await supabase.from('profiles').select('id, is_admin')
       const { data: allHoldings } = await supabase.from('holdings').select('artist_id, shares, buy_price')
@@ -553,7 +452,6 @@ const getP = (s) => {
 
       </div>
 
-      <MarketFooter />
     </main>
   )
 }

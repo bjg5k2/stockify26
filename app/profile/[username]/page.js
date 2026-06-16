@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
-import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton, MarketFooter } from '../../components/FX'
+import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../../components/FX'
 
 function timeAgo(dateStr) {
   const date = new Date(dateStr)
@@ -164,7 +164,7 @@ export default function ProfilePage() {
   }, [username])
 
 const getPrice = (artist) => {
-    return Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+    return Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
   }
   const getTotalValue = () => holdings.reduce((total, h) => {
     const artist = artistData[h.artist_id]
@@ -444,7 +444,6 @@ const getPrice = (artist) => {
 
       </div>
 
-      <MarketFooter />
     </main>
   )
 }

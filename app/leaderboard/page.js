@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
-import { EQVisualizer, AnimatedNumber, Skeleton, MarketFooter } from '../components/FX'
+import { EQVisualizer, AnimatedNumber, Skeleton } from '../components/FX'
 
 export default function LeaderboardPage() {
   const [myProfile, setMyProfile] = useState(null)
@@ -45,7 +45,7 @@ export default function LeaderboardPage() {
         })
       )
 
-const getPrice = (artist) => Math.max(1, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+const getPrice = (artist) => Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
       const holdingsByUser = {}
       ;(allHoldings || []).forEach(h => {
         if (!holdingsByUser[h.user_id]) holdingsByUser[h.user_id] = []
@@ -200,7 +200,6 @@ const getPrice = (artist) => Math.max(1, Math.round((Math.sqrt(artist.followers)
         </div>
       </div>
 
-      <MarketFooter />
     </main>
   )
 }

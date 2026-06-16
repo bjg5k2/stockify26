@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { EQVisualizer, AnimatedNumber, Skeleton, useFlash, MarketFooter } from '../../components/FX'
+import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../../components/FX'
 
 export default function ArtistPage() {
   const [artist, setArtist] = useState(null)
@@ -56,7 +56,7 @@ export default function ArtistPage() {
           const pop = s.popularity ?? 91
           return {
             date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-price: Math.max(1, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))          }
+price: Math.max(10, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))          }
         }))
       }
 
@@ -94,7 +94,7 @@ price: Math.max(1, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (po
   }, [id])
 
 const getPrice = (a) => {
-    return Math.max(1, Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10))
+    return Math.max(10, Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10))
   }
   const showMessage = (text, success = true) => {
     setMessage({ text, success })
@@ -144,89 +144,42 @@ const getPrice = (a) => {
   }
 
   const buyShares = async () => {
-    const shares = getBuyShares()
-    const cost = getBuyCost()
-    const price = getPrice(artist)
-    if (!shares || shares <= 0) { showMessage('Enter a valid amount.', false); return }
-    if (cost > profile.credits) { showMessage('Not enough credits!', false); return }
-    const { data: { user } } = await supabase.auth.getUser()
-
-    let isFirstInvestor = false
-    let isNewInvestor = false
-    if (!holding) {
-      isNewInvestor = !profile.is_admin
-      if (!profile.is_admin) {
-        const { data: existingHoldings } = await supabase
-          .from('holdings')
-          .select('user_id')
-          .eq('artist_id', artist.id)
-        const realExisting = (existingHoldings || []).filter(h => !adminIds.includes(h.user_id))
-        if (realExisting.length === 0) isFirstInvestor = true
-      }
-    }
-
-    if (holding) {
-      await supabase.from('holdings').update({ shares: holding.shares + shares }).eq('id', holding.id)
-      setHolding({ ...holding, shares: holding.shares + shares })
-    } else {
-      const { data } = await supabase.from('holdings').insert({
-        user_id: user.id, artist_id: artist.id, artist_name: artist.name, shares, buy_price: price
-      }).select().single()
-      setHolding(data)
-    }
-    const { data: tx } = await supabase.from('transactions').insert({
-      user_id: user.id, artist_id: artist.id, artist_name: artist.name,
-      type: 'buy', shares, price_per_share: price, total: cost
-    }).select().single()
-    setTransactions([tx, ...transactions])
-
-    if (isNewInvestor) setTotalInvestors(prev => prev + 1)
-
-    let bonus = 0
-    if (isFirstInvestor) {
-      bonus = 50
-      await supabase.from('badges').insert({
-        user_id: user.id, badge_type: 'first_investor', artist_id: artist.id, artist_name: artist.name
-      })
-    }
-
-    const newCredits = profile.credits - cost + bonus
-    await supabase.from('profiles').update({ credits: newCredits }).eq('id', user.id)
-    setProfile({ ...profile, credits: newCredits })
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/trade/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ artist_id: artist.id, mode: buyMode, amount: buyInput }),
+    })
+    const result = await res.json()
+    if (!result.success) { showMessage(result.error || 'Trade failed.', false); return }
+    setHolding(result.holding)
+    setTransactions([result.transaction, ...transactions])
+    setProfile({ ...profile, credits: result.new_credits })
+    if (!holding && !profile.is_admin) setTotalInvestors(prev => prev + 1)
     setBuyInput('')
-
-    if (isFirstInvestor) {
-      showMessage(`🏆 First Investor! Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR + 50 CR bonus!`)
+    if (result.first_investor) {
+      showMessage(`🏆 First Investor! Bought ${result.shares_bought.toFixed(2)} shares for ${result.cost.toLocaleString()} CR + 50 CR bonus!`)
     } else {
-      showMessage(`Bought ${shares.toFixed(2)} shares for ${cost.toLocaleString()} CR!`)
+      showMessage(`Bought ${result.shares_bought.toFixed(2)} shares for ${result.cost.toLocaleString()} CR!`)
     }
   }
 
   const sellShares = async (sellAll = false) => {
     if (!holding) return
-    const price = getPrice(artist)
-    const sharesToSell = sellAll ? holding.shares : getSellShares()
-    const returnAmount = Math.floor(sharesToSell * price)
-    if (!sharesToSell || sharesToSell <= 0) { showMessage('Enter a valid amount.', false); return }
-    if (sharesToSell > holding.shares) { showMessage('Not enough shares!', false); return }
-    const { data: { user } } = await supabase.auth.getUser()
-    if (holding.shares - sharesToSell <= 0.0001) {
-      await supabase.from('holdings').delete().eq('id', holding.id)
-      setHolding(null)
-      if (!profile.is_admin) setTotalInvestors(prev => Math.max(0, prev - 1))
-    } else {
-      await supabase.from('holdings').update({ shares: holding.shares - sharesToSell }).eq('id', holding.id)
-      setHolding({ ...holding, shares: holding.shares - sharesToSell })
-    }
-    const { data: tx } = await supabase.from('transactions').insert({
-      user_id: user.id, artist_id: artist.id, artist_name: artist.name,
-      type: 'sell', shares: sharesToSell, price_per_share: price, total: returnAmount
-    }).select().single()
-    setTransactions([tx, ...transactions])
-    await supabase.from('profiles').update({ credits: profile.credits + returnAmount }).eq('id', user.id)
-    setProfile({ ...profile, credits: profile.credits + returnAmount })
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/trade/sell', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ artist_id: artist.id, mode: sellMode, amount: sellInput, sell_all: sellAll }),
+    })
+    const result = await res.json()
+    if (!result.success) { showMessage(result.error || 'Trade failed.', false); return }
+    setHolding(result.holding_deleted ? null : result.holding)
+    setTransactions([result.transaction, ...transactions])
+    setProfile({ ...profile, credits: result.new_credits })
+    if (result.holding_deleted && !profile.is_admin) setTotalInvestors(prev => Math.max(0, prev - 1))
     setSellInput('')
-    showMessage(`Sold ${sharesToSell.toFixed(2)} shares for ${returnAmount.toLocaleString()} CR!`)
+    showMessage(`Sold ${result.shares_sold.toFixed(2)} shares for ${result.return_amount.toLocaleString()} CR!`)
   }
 
   const handleLogout = async () => {
@@ -510,7 +463,7 @@ const getPrice = (a) => {
                 {!profile?.is_admin && (
                   <div style={{ color: totalInvestors === 0 ? '#fbbf24' : '#555', fontSize: '12px', marginTop: '8px' }}>
                     {totalInvestors === 0
-                      ? `🏆 Be the first to invest in ${artist.name} and earn a badge + 500 CR bonus!`
+                      ? `🏆 Be the first to invest in ${artist.name} and earn a badge + 50 CR bonus!`
                       : `${totalInvestors} user${totalInvestors !== 1 ? 's' : ''} invested`}
                   </div>
                 )}
@@ -632,7 +585,6 @@ const getPrice = (a) => {
         </div>
       </div>
 
-      <MarketFooter />
     </main>
   )
 }
