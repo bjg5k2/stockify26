@@ -188,6 +188,7 @@ const getP = (s) => {
       const txItems = realTx.map(tx => ({
         type: tx.type,
         username: usernameMap[tx.user_id] || 'unknown',
+        artist_id: tx.artist_id,
         artist_name: tx.artist_name,
         shares: tx.shares,
         total: tx.total,
@@ -196,6 +197,7 @@ const getP = (s) => {
       const badgeItems = realBadges.map(b => ({
         type: 'badge',
         username: usernameMap[b.user_id] || 'unknown',
+        artist_id: b.artist_id,
         artist_name: b.artist_name,
         timestamp: b.awarded_at,
       }))
@@ -430,13 +432,13 @@ const getP = (s) => {
               let icon, iconBg, iconColor, text
               if (a.type === 'buy') {
                 icon = '↑'; iconBg = '#0f2a18'; iconColor = '#4ade80'
-                text = <><b style={{ color: '#fff' }}>{a.username}</b> bought <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b></>
+                text = <><b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/profile/${a.username}`)}>{a.username}</b> bought <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b></>
               } else if (a.type === 'sell') {
                 icon = '↓'; iconBg = '#1a0a0a'; iconColor = '#f87171'
-                text = <><b style={{ color: '#fff' }}>{a.username}</b> sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2) } shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b></>
+                text = <><b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/profile/${a.username}`)}>{a.username}</b> sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b></>
               } else {
                 icon = '🏆'; iconBg = '#1a1a0a'; iconColor = '#fbbf24'
-                text = <><b style={{ color: '#fff' }}>{a.username}</b> earned <b style={{ color: '#fff' }}>First Investor</b> for <b style={{ color: '#fff' }}>{a.artist_name}</b></>
+                text = <><b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/profile/${a.username}`)}>{a.username}</b> earned <b style={{ color: '#fff' }}>First Investor</b> for <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b></>
               }
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < feed.length - 1 ? '0.5px solid #141414' : 'none' }}>
