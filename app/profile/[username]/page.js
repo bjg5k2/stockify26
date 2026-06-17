@@ -97,6 +97,7 @@ export default function ProfilePage() {
 
       const { data: txData } = await supabase
         .from('transactions').select('*').eq('user_id', profileData.id)
+        .gt('shares', 0)
         .order('created_at', { ascending: false }).limit(15)
 
       const txItems = (txData || []).map(tx => ({

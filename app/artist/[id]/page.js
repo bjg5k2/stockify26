@@ -45,6 +45,7 @@ export default function ArtistPage() {
 
       const { data: txData } = await supabase
         .from('transactions').select('*').eq('user_id', user.id).eq('artist_id', id)
+        .gt('shares', 0)
         .order('created_at', { ascending: false })
       setTransactions(txData || [])
 

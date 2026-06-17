@@ -168,6 +168,7 @@ const getP = (s) => {
 
       const { data: txData } = await supabase
         .from('transactions').select('*')
+        .gt('shares', 0)
         .order('created_at', { ascending: false }).limit(20)
 
       const { data: badgeData } = await supabase
