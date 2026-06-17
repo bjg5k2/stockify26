@@ -102,6 +102,7 @@ export default function ProfilePage() {
 
       const txItems = (txData || []).map(tx => ({
         type: tx.type,
+        artist_id: tx.artist_id,
         artist_name: tx.artist_name,
         shares: tx.shares,
         price_per_share: tx.price_per_share,
@@ -110,6 +111,7 @@ export default function ProfilePage() {
       }))
       const badgeItems = (badgeData || []).map(b => ({
         type: 'badge',
+        artist_id: b.artist_id,
         artist_name: b.artist_name,
         timestamp: b.awarded_at,
       }))
@@ -258,15 +260,9 @@ const getPrice = (artist) => {
           <span onClick={() => router.push('/dashboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Portfolio</span>
           <span onClick={() => router.push('/explore')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Explore</span>
           <span onClick={() => router.push('/leaderboard')} style={{ color: '#666', fontSize: '16px', cursor: 'pointer' }}>Leaderboard</span>
-          <span
-            onClick={() => router.push(`/profile/${myProfile?.username}`)}
-            style={{ color: isOwnProfile ? '#fff' : '#666', fontSize: '16px', fontWeight: isOwnProfile ? '500' : '400', cursor: 'pointer' }}
-          >
-            Profile
-          </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{myInitials}</div>
-            <span style={{ color: '#aaa', fontSize: '16px' }}>{myProfile?.username}</span>
+            <span onClick={() => router.push(`/profile/${myProfile?.username}`)} style={{ color: '#aaa', fontSize: '16px', cursor: 'pointer' }}>{myProfile?.username}</span>
           </div>
           <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
@@ -421,13 +417,13 @@ const getPrice = (artist) => {
                 let icon, iconBg, iconColor, text
                 if (a.type === 'buy') {
                   icon = '↑'; iconBg = '#0f2a18'; iconColor = '#4ade80'
-                  text = <>Bought <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
+                  text = <>Bought <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
                 } else if (a.type === 'sell') {
                   icon = '↓'; iconBg = '#1a0a0a'; iconColor = '#f87171'
-                  text = <>Sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2) } shares</b> of <b style={{ color: '#fff' }}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
+                  text = <>Sold <b style={{ color: '#fff' }}>{a.shares.toFixed(2)} shares</b> of <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b> at {Math.round(a.price_per_share).toLocaleString()} CR</>
                 } else {
                   icon = '🏆'; iconBg = '#1a1a0a'; iconColor = '#fbbf24'
-                  text = <>Earned <b style={{ color: '#fff' }}>First Investor</b> badge for <b style={{ color: '#fff' }}>{a.artist_name}</b> + 50 CR</>
+                  text = <>Earned <b style={{ color: '#fff' }}>First Investor</b> badge for <b style={{ color: '#fff', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.2)' }} onClick={() => router.push(`/artist/${a.artist_id}`)}>{a.artist_name}</b> + 50 CR</>
                 }
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: i < activity.length - 1 ? '0.5px solid #141414' : 'none' }}>
