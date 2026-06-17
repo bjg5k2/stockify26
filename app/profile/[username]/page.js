@@ -167,7 +167,7 @@ export default function ProfilePage() {
   }, [username])
 
 const getPrice = (artist) => {
-    return Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+    return Math.max(10, Math.round(Math.sqrt(artist.followers) / 2 + (artist.popularity * artist.popularity) / 8))
   }
   const getTotalValue = () => holdings.reduce((total, h) => {
     const artist = artistData[h.artist_id]
@@ -287,6 +287,12 @@ const getPrice = (artist) => {
                 <span style={{ background: 'rgba(251,191,36,0.1)', border: '0.5px solid #3a3a0a', color: '#fbbf24', fontSize: '11px', fontWeight: '500', padding: '4px 10px', borderRadius: '6px' }}>
                   Admin
                 </span>
+              )}
+              {!isOwnProfile && (
+                <button
+                  onClick={() => router.push(`/compare/${profile.username}`)}
+                  style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '12px', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer' }}
+                >Compare</button>
               )}
             </div>
             <p style={{ color: '#8fae9c', fontSize: '13px', marginTop: '4px' }}>

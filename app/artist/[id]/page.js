@@ -57,7 +57,7 @@ export default function ArtistPage() {
           const pop = s.popularity ?? 91
           return {
             date: new Date(s.snapshot_date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }),
-price: Math.max(10, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))          }
+price: Math.max(10, Math.round(Math.sqrt(s.monthly_listeners) / 2 + (pop * pop) / 8))          }
         }))
       }
 
@@ -95,7 +95,7 @@ price: Math.max(10, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (p
   }, [id])
 
 const getPrice = (a) => {
-    return Math.max(10, Math.round((Math.sqrt(a.followers) * (a.popularity / 10) + (a.popularity * a.popularity / 200)) / 10))
+    return Math.max(10, Math.round(Math.sqrt(a.followers) / 2 + (a.popularity * a.popularity) / 8))
   }
   const showMessage = (text, success = true) => {
     setMessage({ text, success })

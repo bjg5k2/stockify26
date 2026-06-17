@@ -41,7 +41,7 @@ export default function HomePage() {
   const router = useRouter()
 
 const getPrice = (artist) => {
-    return Math.max(10, Math.round((Math.sqrt(artist.followers) * (artist.popularity / 10) + (artist.popularity * artist.popularity / 200)) / 10))
+    return Math.max(10, Math.round(Math.sqrt(artist.followers) / 2 + (artist.popularity * artist.popularity) / 8))
   }
   useEffect(() => {
     const init = async () => {
@@ -89,7 +89,7 @@ const getPrice = (artist) => {
       if (aodSnaps && aodSnaps.length >= 2) {
 const getP = (s) => {
           const pop = s.popularity ?? 91
-          return Math.max(10, Math.round((Math.sqrt(s.monthly_listeners) * (pop / 10) + (pop * pop / 200)) / 10))
+          return Math.max(10, Math.round(Math.sqrt(s.monthly_listeners) / 2 + (pop * pop) / 8))
         }
         const firstPrice = getP(aodSnaps[0])
         const lastPrice = getP(aodSnaps[aodSnaps.length - 1])

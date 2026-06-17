@@ -28,7 +28,5 @@ export async function fetchSpotifyArtist(id) {
 }
 
 export function getPrice({ followers, popularity }) {
-  return Math.max(10, Math.round(
-    (Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10
-  ))
+  return Math.max(10, Math.round(Math.sqrt(followers) / 2 + (popularity * popularity) / 8))
 }
