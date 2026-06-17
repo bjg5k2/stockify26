@@ -21,7 +21,7 @@ async function getSpotifyToken() {
 }
 
 function getPrice(followers, popularity) {
-  return Math.round((Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10)
+  return Math.max(10, Math.round((Math.sqrt(followers) * (popularity / 10) + (popularity * popularity / 200)) / 10))
 }
 
 export async function GET(request) {
@@ -31,15 +31,16 @@ export async function GET(request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: holdings } = await supabase
-      .from('holdings')
+    const { data: transactions } = await supabase
+      .from('transactions')
       .select('artist_id, artist_name')
+      .eq('type', 'buy')
 
-    if (!holdings || holdings.length === 0) {
-      return Response.json({ message: 'No holdings to snapshot' })
+    if (!transactions || transactions.length === 0) {
+      return Response.json({ message: 'No artists to snapshot' })
     }
 
-    const uniqueArtists = [...new Map(holdings.map(h => [h.artist_id, h])).values()]
+    const uniqueArtists = [...new Map(transactions.map(t => [t.artist_id, t])).values()]
 
     const chunks = []
     for (let i = 0; i < uniqueArtists.length; i += 50) {

@@ -140,7 +140,7 @@ const getP = (s) => {
       })
 
       const growthList = Object.entries(byArtist)
-        .filter(([, snaps]) => snaps.length >= 2)
+        .filter(([, snaps]) => snaps.length >= 2 && snaps[snaps.length - 1].popularity > 30)
         .map(([id, snaps]) => {
           const first = snaps[0]
           const last = snaps[snaps.length - 1]
