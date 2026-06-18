@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 import { EQVisualizer, LiveDot, AnimatedNumber, Skeleton } from '../components/FX'
+import NotificationBell from '../components/NotificationBell'
 
 const FEATURED_IDS = [
   { id: '74KM79TiuVKeVCqs8QtB0B', name: 'Sabrina Carpenter' },
@@ -188,6 +189,7 @@ const getPrice = (artist) => {
             </div>
             <span onClick={() => router.push(`/profile/${profile?.username}`)} style={{ color: '#aaa', fontSize: '16px', cursor: 'pointer' }}>{profile?.username}</span>
           </div>
+          <NotificationBell />
           <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
       </nav>

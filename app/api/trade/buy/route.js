@@ -86,6 +86,42 @@ export async function POST(request) {
   const newCredits = profile.credits - cost + bonus
   await supabaseAdmin.from('profiles').update({ credits: newCredits }).eq('id', user.id)
 
+  if (!existingHolding) {
+    const currentTier = artist.popularity >= 93 ? 3
+      : artist.popularity >= 85 ? 2
+      : artist.popularity >= 75 ? 1 : 0
+
+    await supabaseAdmin.from('price_alerts').insert([
+      {
+        user_id: user.id,
+        artist_id,
+        artist_name: artist.name,
+        alert_type: 'price_pct',
+        threshold: 3,
+        last_price: price,
+        last_tier: null,
+      },
+      {
+        user_id: user.id,
+        artist_id,
+        artist_name: artist.name,
+        alert_type: 'price_milestone',
+        threshold: 0,
+        last_price: price,
+        last_tier: null,
+      },
+      {
+        user_id: user.id,
+        artist_id,
+        artist_name: artist.name,
+        alert_type: 'popularity_tier',
+        threshold: 0,
+        last_price: null,
+        last_tier: currentTier,
+      },
+    ])
+  }
+
   return Response.json({
     success: true,
     shares_bought: shares,

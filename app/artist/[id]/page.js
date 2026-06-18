@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { EQVisualizer, AnimatedNumber, Skeleton, useFlash } from '../../components/FX'
+import NotificationBell from '../../components/NotificationBell'
 
 export default function ArtistPage() {
   const [artist, setArtist] = useState(null)
@@ -21,6 +22,12 @@ export default function ArtistPage() {
   const [buyInput, setBuyInput] = useState('')
   const [sellInput, setSellInput] = useState('')
   const [message, setMessage] = useState({ text: '', success: true })
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertType, setAlertType] = useState('price_pct')
+  const [alertThreshold, setAlertThreshold] = useState('')
+  const [alertSaving, setAlertSaving] = useState(false)
+  const [alertMessage, setAlertMessage] = useState({ text: '', success: true })
+  const [existingAlerts, setExistingAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const { id } = useParams()
@@ -42,6 +49,13 @@ export default function ArtistPage() {
       const { data: holdingData } = await supabase
         .from('holdings').select('*').eq('user_id', user.id).eq('artist_id', id).single()
       setHolding(holdingData || null)
+
+      const { data: alertData } = await supabase
+        .from('price_alerts')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('artist_id', id)
+      setExistingAlerts(alertData || [])
 
       const { data: txData } = await supabase
         .from('transactions').select('*').eq('user_id', user.id).eq('artist_id', id)
@@ -97,6 +111,51 @@ price: Math.max(10, Math.round(Math.sqrt(s.monthly_listeners) / 2 + (pop * pop) 
 const getPrice = (a) => {
     return Math.max(10, Math.round(Math.sqrt(a.followers) / 2 + (a.popularity * a.popularity) / 8))
   }
+
+  const saveAlert = async () => {
+    setAlertSaving(true)
+    setAlertMessage({ text: '', success: true })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAlertSaving(false); return }
+
+    if (alertType !== 'popularity_tier' && alertType !== 'price_milestone' && (!alertThreshold || alertThreshold === '' || isNaN(parseFloat(alertThreshold)))) {
+      setAlertMessage({ text: 'Enter a valid threshold.', success: false })
+      setAlertSaving(false)
+      return
+    }
+    const thresholdValue = (alertType === 'popularity_tier' || alertType === 'price_milestone') ? 0 : parseFloat(alertThreshold)
+
+    const currentTier = (artist?.popularity || 0) >= 93 ? 3
+      : (artist?.popularity || 0) >= 85 ? 2
+      : (artist?.popularity || 0) >= 75 ? 1 : 0
+
+    const { error } = await supabase.from('price_alerts').insert({
+      user_id: user.id,
+      artist_id: id,
+      artist_name: artist?.name || '',
+      alert_type: alertType,
+      threshold: thresholdValue,
+      last_price: alertType !== 'popularity_tier' ? getPrice(artist) : null,
+      last_tier: alertType === 'popularity_tier' ? currentTier : null,
+    })
+
+    if (error) {
+      setAlertMessage({ text: error.message, success: false })
+    } else {
+      setAlertMessage({ text: 'Alert saved!', success: true })
+      setAlertThreshold('')
+      const { data: alertData } = await supabase
+        .from('price_alerts').select('*').eq('user_id', user.id).eq('artist_id', id)
+      setExistingAlerts(alertData || [])
+    }
+    setAlertSaving(false)
+  }
+
+  const deleteAlert = async (alertId) => {
+    await supabase.from('price_alerts').delete().eq('id', alertId)
+    setExistingAlerts(prev => prev.filter(a => a.id !== alertId))
+  }
+
   const showMessage = (text, success = true) => {
     setMessage({ text, success })
     setTimeout(() => setMessage({ text: '', success: true }), 4000)
@@ -282,6 +341,7 @@ const getPrice = (a) => {
             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{initials}</div>
             <span onClick={() => router.push(`/profile/${profile?.username}`)} style={{ color: '#aaa', fontSize: '16px', cursor: 'pointer' }}>{profile?.username}</span>
           </div>
+          <NotificationBell />
           <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#666', fontSize: '14px', padding: '7px 16px', borderRadius: '6px', cursor: 'pointer' }}>Log out</button>
         </div>
       </nav>
@@ -534,6 +594,98 @@ const getPrice = (a) => {
         <div style={{ padding: '28px 24px', overflow: 'auto' }}>
 
           
+          {/* Price Alerts */}
+          <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
+            <div
+              onClick={() => setAlertOpen(o => !o)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            >
+              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px' }}>PRICE ALERTS {existingAlerts.length > 0 && <span style={{ color: '#4ade80' }}>({existingAlerts.length})</span>}</div>
+              <span style={{ color: '#555', fontSize: '12px' }}>{alertOpen ? '▲' : '▼'}</span>
+            </div>
+            {alertOpen && (
+              <div style={{ marginTop: '14px' }}>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                  {[
+                    { value: 'price_pct', label: '% Move' },
+                    { value: 'price_milestone', label: 'Milestones' },
+                    { value: 'popularity_tier', label: 'Tier Change' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setAlertType(opt.value)}
+                      style={{
+                        flex: 1, padding: '6px 4px', fontSize: '11px', borderRadius: '6px', cursor: 'pointer',
+                        background: alertType === opt.value ? '#4ade80' : '#111',
+                        color: alertType === opt.value ? '#000' : '#666',
+                        border: `0.5px solid ${alertType === opt.value ? '#4ade80' : '#1c1c1c'}`,
+                      }}
+                    >{opt.label}</button>
+                  ))}
+                </div>
+
+                {alertType === 'price_pct' && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      value={alertThreshold}
+                      onChange={e => setAlertThreshold(e.target.value)}
+                      placeholder="e.g. 10"
+                      style={{ flex: 1, background: '#111', border: '0.5px solid #1c1c1c', borderRadius: '6px', padding: '6px 10px', color: '#fff', fontSize: '12px', outline: 'none' }}
+                    />
+                    <span style={{ color: '#555', fontSize: '12px' }}>% move</span>
+                  </div>
+                )}
+                {alertType === 'price_milestone' && (
+                  <p style={{ color: '#555', fontSize: '12px', marginBottom: '10px', lineHeight: '1.5' }}>
+                    You'll be notified each time this artist's price crosses 100, 500, 1,000, 2,000, 3,000... CR
+                  </p>
+                )}
+                {alertType === 'popularity_tier' && (
+                  <p style={{ color: '#555', fontSize: '12px', marginBottom: '10px', lineHeight: '1.5' }}>
+                    Notify me when this artist enters a higher or lower dividend tier
+                  </p>
+                )}
+
+                {alertMessage.text && (
+                  <div style={{ color: alertMessage.success ? '#4ade80' : '#f87171', fontSize: '11px', marginBottom: '8px' }}>
+                    {alertMessage.text}
+                  </div>
+                )}
+
+                <button
+                  onClick={saveAlert}
+                  disabled={alertSaving}
+                  style={{
+                    width: '100%', padding: '8px', fontSize: '12px', borderRadius: '6px', cursor: 'pointer',
+                    background: '#4ade80', color: '#000', border: 'none', fontWeight: '500',
+                    opacity: alertSaving ? 0.5 : 1,
+                  }}
+                >{alertSaving ? 'Saving...' : 'Set Alert'}</button>
+
+                {existingAlerts.length > 0 && (
+                  <div style={{ marginTop: '14px' }}>
+                    <div style={{ color: '#555', fontSize: '11px', marginBottom: '2px' }}>Active alerts</div>
+                    <div style={{ color: '#555', fontSize: '11px', marginBottom: '8px' }}>Auto-enrolled when you invested. Remove any you don't want.</div>
+                    {existingAlerts.map(a => (
+                      <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '0.5px solid #111' }}>
+                        <span style={{ color: '#ddd', fontSize: '12px' }}>
+                          {a.alert_type === 'price_pct' && `Notify if price moves ≥ ${a.threshold}% in a day`}
+                          {a.alert_type === 'price_milestone' && 'Notify on price milestones (100, 500, 1K, 2K... CR)'}
+                          {a.alert_type === 'popularity_tier' && 'Notify on any popularity tier change'}
+                        </span>
+                        <button
+                          onClick={() => deleteAlert(a.id)}
+                          style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '11px', cursor: 'pointer', padding: '2px 6px' }}
+                        >Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Artist Stats */}
           <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginBottom: '14px' }}>
             <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>ARTIST STATS</div><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
