@@ -326,12 +326,6 @@ export default function LeaderboardPage() {
                       <div style={{ color: '#fff', fontSize: '16px', fontWeight: '600' }}>{u.username}</div>
                       <div style={{ color: medalColors[i], fontSize: '18px', fontWeight: '600', marginTop: '6px' }}><AnimatedNumber value={Math.round(u.netWorth)} /> CR</div>
                       <div style={{ color: '#555', fontSize: '11px', marginTop: '4px' }}>{u.holdingsCount} artists · {u.badgesCount} badges</div>
-                      {u.id !== myProfile?.id && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); router.push(`/compare/${u.username}`) }}
-                          style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#555', fontSize: '11px', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', marginTop: '10px' }}
-                        >Compare</button>
-                      )}
                     </div>
                   )
                 })}
@@ -369,12 +363,6 @@ export default function LeaderboardPage() {
                         <div style={{ color: '#555', fontSize: '12px', marginTop: '2px' }}>{u.holdingsCount} artists · {u.badgesCount} badges</div>
                       </div>
                       <div style={{ color: '#fff', fontSize: '15px', fontWeight: '500' }}><AnimatedNumber value={Math.round(u.netWorth)} /> CR</div>
-                      {u.id !== myProfile?.id && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); router.push(`/compare/${u.username}`) }}
-                          style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#555', fontSize: '11px', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', flexShrink: 0 }}
-                        >Compare</button>
-                      )}
                     </div>
                   )
                 })}

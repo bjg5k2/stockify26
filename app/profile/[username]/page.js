@@ -33,6 +33,13 @@ export default function ProfilePage() {
   const [largestInvestorMap, setLargestInvestorMap] = useState({})
   const [notFound, setNotFound] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [followers, setFollowers] = useState([])
+  const [following, setFollowing] = useState([])
+  const [showFollowers, setShowFollowers] = useState(false)
+  const [showFollowing, setShowFollowing] = useState(false)
   const router = useRouter()
   const { username } = useParams()
 
@@ -162,6 +169,33 @@ export default function ProfilePage() {
         }
       }
 
+      const { data: followerData } = await supabase
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', profileData.id)
+      setFollowerCount((followerData || []).length)
+      setIsFollowing((followerData || []).some(f => f.follower_id === user.id))
+
+      const { data: followingData } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', profileData.id)
+      setFollowingCount((followingData || []).length)
+
+      const followerIds = (followerData || []).map(f => f.follower_id)
+      if (followerIds.length > 0) {
+        const { data: followerProfiles } = await supabase
+          .from('profiles').select('id, username').in('id', followerIds)
+        setFollowers(followerProfiles || [])
+      }
+
+      const followingIds = (followingData || []).map(f => f.following_id)
+      if (followingIds.length > 0) {
+        const { data: followingProfiles } = await supabase
+          .from('profiles').select('id, username').in('id', followingIds)
+        setFollowing(followingProfiles || [])
+      }
+
       setLoading(false)
     }
     getData()
@@ -198,6 +232,35 @@ const getPrice = (artist) => {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const handleFollow = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (!currentUser) return
+
+    if (isFollowing) {
+      await supabase.from('follows')
+        .delete()
+        .eq('follower_id', currentUser.id)
+        .eq('following_id', profile.id)
+      setIsFollowing(false)
+      setFollowerCount(prev => prev - 1)
+      setFollowers(prev => prev.filter(f => f.id !== currentUser.id))
+    } else {
+      await supabase.from('follows')
+        .insert({ follower_id: currentUser.id, following_id: profile.id })
+      setIsFollowing(true)
+      setFollowerCount(prev => prev + 1)
+      setFollowers(prev => [...prev, { id: currentUser.id, username: myProfile?.username }])
+
+      await supabase.from('notifications').insert({
+        user_id: profile.id,
+        type: 'new_follower',
+        title: `👤 ${myProfile?.username} followed you`,
+        body: `${myProfile?.username} is now following your portfolio.`,
+        read: false,
+      })
+    }
   }
 
   if (loading) return (
@@ -290,18 +353,26 @@ const getPrice = (artist) => {
                   Admin
                 </span>
               )}
-              {!isOwnProfile && (
-                <button
-                  onClick={() => router.push(`/compare/${profile.username}`)}
-                  style={{ background: 'transparent', border: '0.5px solid #2a2a2a', color: '#aaa', fontSize: '12px', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer' }}
-                >Compare</button>
-              )}
             </div>
             <p style={{ color: '#8fae9c', fontSize: '13px', marginTop: '4px' }}>
               {joinedDate && `Joined ${joinedDate}`}
               {holdings.length > 0 && ` · ${holdings.length} artist${holdings.length !== 1 ? 's' : ''} invested`}
               {badges.length > 0 && ` · ${badges.length} badge${badges.length !== 1 ? 's' : ''}`}
             </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '8px' }}>
+              <span
+                onClick={() => setShowFollowers(v => !v)}
+                style={{ color: '#8fae9c', fontSize: '13px', cursor: 'pointer' }}
+              >
+                <span style={{ color: '#fff', fontWeight: '500' }}>{followerCount}</span> followers
+              </span>
+              <span
+                onClick={() => setShowFollowing(v => !v)}
+                style={{ color: '#8fae9c', fontSize: '13px', cursor: 'pointer' }}
+              >
+                <span style={{ color: '#fff', fontWeight: '500' }}>{followingCount}</span> following
+              </span>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '36px', marginLeft: 'auto' }}>
             <div style={{ textAlign: 'right' }}>
@@ -317,9 +388,92 @@ const getPrice = (artist) => {
               </div>
               <div style={{ color: '#8fae9c', fontSize: '11px', marginTop: '3px', letterSpacing: '0.5px' }}>LEADERBOARD RANK</div>
             </div>
+            {!isOwnProfile && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignSelf: 'center' }}>
+                <button
+                  onClick={handleFollow}
+                  style={{
+                    background: isFollowing ? 'transparent' : '#4ade80',
+                    border: isFollowing ? '0.5px solid #2a2a2a' : 'none',
+                    color: isFollowing ? '#666' : '#000',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+                <button
+                  onClick={() => router.push(`/compare/${profile.username}`)}
+                  style={{
+                    background: 'transparent',
+                    border: '0.5px solid #2a2a2a',
+                    color: '#aaa',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  Head to Head
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {(showFollowers || showFollowing) && (
+        <div style={{ padding: '0 48px 16px', display: 'flex', gap: '16px', flexShrink: 0 }}>
+          {showFollowers && (
+            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', minWidth: '220px' }}>
+              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '12px' }}>FOLLOWERS</div>
+              {followers.length === 0 ? (
+                <div style={{ color: '#444', fontSize: '13px' }}>No followers yet.</div>
+              ) : (
+                followers.map(f => (
+                  <div
+                    key={f.id}
+                    onClick={() => router.push(`/profile/${f.username}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '0.5px solid #111', cursor: 'pointer' }}
+                  >
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '10px', fontWeight: '500', flexShrink: 0 }}>
+                      {f.username?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span style={{ color: '#ddd', fontSize: '13px' }}>{f.username}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          {showFollowing && (
+            <div style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '16px', minWidth: '220px' }}>
+              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '12px' }}>FOLLOWING</div>
+              {following.length === 0 ? (
+                <div style={{ color: '#444', fontSize: '13px' }}>Not following anyone yet.</div>
+              ) : (
+                following.map(f => (
+                  <div
+                    key={f.id}
+                    onClick={() => router.push(`/profile/${f.username}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '0.5px solid #111', cursor: 'pointer' }}
+                  >
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '10px', fontWeight: '500', flexShrink: 0 }}>
+                      {f.username?.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span style={{ color: '#ddd', fontSize: '13px' }}>{f.username}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Body */}
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 320px', gap: '20px', padding: '24px 48px 66px', overflow: 'hidden', minHeight: 0 }}>

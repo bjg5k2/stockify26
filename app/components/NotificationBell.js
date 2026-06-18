@@ -57,6 +57,7 @@ export default function NotificationBell() {
     if (type === 'dividend') return '💰'
     if (type === 'market_summary') return '📊'
     if (type === 'price_alert') return '🔔'
+    if (type === 'new_follower') return '👤'
     return '🔔'
   }
 

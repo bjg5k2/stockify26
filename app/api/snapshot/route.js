@@ -56,11 +56,6 @@ export async function GET(request) {
 
     const uniqueArtists = [...new Map(transactions.map(t => [t.artist_id, t])).values()]
 
-    const chunks = []
-    for (let i = 0; i < uniqueArtists.length; i += 50) {
-      chunks.push(uniqueArtists.slice(i, i + 50))
-    }
-
     const token = await getSpotifyToken()
     const today = new Date().toISOString().split('T')[0]
     const yesterday = new Date()
@@ -73,20 +68,19 @@ export async function GET(request) {
 
     const { data: profiles } = await supabase.from('profiles').select('*')
 
-    for (const chunk of chunks) {
-      const ids = chunk.map(a => a.artist_id).join(',')
-      const res = await fetch(
-        `https://api.spotify.com/v1/artists?ids=${ids}`,
-        { headers: { 'Authorization': `Bearer ${token}` } }
-      )
-      const data = await res.json()
-      if (!data.artists) {
-        console.error('Spotify artists fetch failed for chunk:', ids, data)
-        continue
-      }
+    for (const artistObj of uniqueArtists) {
+      try {
+        const res = await fetch(
+          `https://api.spotify.com/v1/artists/${artistObj.artist_id}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        )
+        if (!res.ok) {
+          console.error(`Spotify fetch failed for ${artistObj.artist_id}: ${res.status}`)
+          continue
+        }
+        const artist = await res.json()
+        if (!artist || !artist.id) continue
 
-      for (const artist of data.artists) {
-        if (!artist) continue
         const followers = artist.followers.total
         const popularity = artist.popularity
         const price = getPrice(followers, popularity)
@@ -98,24 +92,15 @@ export async function GET(request) {
           artist_id: artist.id,
           artist_name: artist.name,
           monthly_listeners: followers,
-          popularity: popularity,
+          popularity,
           snapshot_date: today
         }, { onConflict: 'artist_id,snapshot_date' })
 
         totalSnapshotted++
+      } catch (err) {
+        console.error('Failed to fetch artist:', artistObj.artist_id, err.message)
       }
-    }
-
-    if (Object.keys(artistDataMap).length === 0) {
-      console.error('artistDataMap is empty — Spotify fetch may have failed. Skipping dividends.')
-      return Response.json({
-        success: true,
-        artists_snapshotted: totalSnapshotted,
-        users_snapshotted: profiles.length,
-        dividends_paid: 0,
-        users_dividended: 0,
-        warning: 'artistDataMap empty — dividends skipped',
-      })
+      await new Promise(r => setTimeout(r, 150))
     }
 
     for (const profile of profiles) {

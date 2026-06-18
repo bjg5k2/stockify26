@@ -29,6 +29,10 @@ export default function ArtistPage() {
   const [alertMessage, setAlertMessage] = useState({ text: '', success: true })
   const [existingAlerts, setExistingAlerts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [allTimeHigh, setAllTimeHigh] = useState(null)
+  const [allTimeLow, setAllTimeLow] = useState(null)
+  const [recentArtistActivity, setRecentArtistActivity] = useState([])
+  const [calcPop, setCalcPop] = useState('')
   const router = useRouter()
   const { id } = useParams()
 
@@ -102,6 +106,42 @@ price: Math.max(10, Math.round(Math.sqrt(s.monthly_listeners) / 2 + (pop * pop) 
         const bioData = await bioRes.json()
         setBio(bioData.bio)
       }
+
+      // All-time high/low
+      const { data: allSnaps } = await supabase
+        .from('artist_snapshots')
+        .select('monthly_listeners, popularity, snapshot_date')
+        .eq('artist_id', id)
+        .order('snapshot_date', { ascending: true })
+
+      if (allSnaps && allSnaps.length > 0) {
+        const prices = allSnaps.map(s => ({
+          price: Math.max(10, Math.round(Math.sqrt(s.monthly_listeners) / 2 + (s.popularity * s.popularity) / 8)),
+          date: s.snapshot_date,
+        }))
+        setAllTimeHigh(prices.reduce((max, p) => p.price > max.price ? p : max, prices[0]))
+        setAllTimeLow(prices.reduce((min, p) => p.price < min.price ? p : min, prices[0]))
+      }
+
+      // Recent artist activity
+      try {
+        const { data: recentTx } = await supabase
+          .from('transactions')
+          .select('user_id, type, shares, price_per_share, total, created_at')
+          .eq('artist_id', id)
+          .gt('shares', 0)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (recentTx && recentTx.length > 0) {
+          const userIds = [...new Set(recentTx.map(t => t.user_id))]
+          const { data: txProfiles } = await supabase
+            .from('profiles').select('id, username').in('id', userIds)
+          const usernameMap = {}
+          ;(txProfiles || []).forEach(p => { usernameMap[p.id] = p.username })
+          setRecentArtistActivity(recentTx.map(t => ({ ...t, username: usernameMap[t.user_id] || 'unknown' })))
+        }
+      } catch {}
 
       setLoading(false)
     }
@@ -247,6 +287,17 @@ const getPrice = (a) => {
     router.push('/')
   }
 
+  const timeAgo = (dateStr) => {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const m = Math.floor(diff / 60000)
+    const h = Math.floor(m / 60)
+    const d = Math.floor(h / 24)
+    if (d > 0) return `${d}d ago`
+    if (h > 0) return `${h}h ago`
+    if (m > 0) return `${m}m ago`
+    return 'just now'
+  }
+
   const price = artist ? getPrice(artist) : 0
   const currentValue = holding && artist ? holding.shares * price : 0
   const avgPrice = getAvgPrice()
@@ -354,7 +405,7 @@ const getPrice = (a) => {
 
           {/* Artist Header */}
 {/* Artist Header */}
-          <div style={{ marginBottom: '28px', padding: '24px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(74,222,128,0.08), rgba(10,10,10,0.4))', border: '0.5px solid rgba(74,222,128,0.18)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(74,222,128,0.06)' }}>
+          <div className="card-hover" style={{ marginBottom: '28px', padding: '24px', borderRadius: '16px', background: 'linear-gradient(135deg, rgba(74,222,128,0.08), rgba(10,10,10,0.4))', border: '0.5px solid rgba(74,222,128,0.18)', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(74,222,128,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>              {artist.image ? (
                 <img src={artist.image} alt={artist.name} style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #1a4a2a' }} />
               ) : (
@@ -371,6 +422,19 @@ const getPrice = (a) => {
                     <span style={{ color: '#444', fontSize: '14px' }}>{artist.genres.join(', ')}</span>
                   </>}
                 </div>
+                {artist.spotifyUrl && (
+                  <a
+                    href={artist.spotifyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#1DB954', fontSize: '12px', fontWeight: '500', textDecoration: 'none', marginTop: '6px' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#1DB954">
+                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                    </svg>
+                    Listen on Spotify
+                  </a>
+                )}
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', justifyContent: 'flex-end' }}>
@@ -512,6 +576,22 @@ const getPrice = (a) => {
                   <button style={tabStyle(buyMode === 'cr')} onClick={() => { setBuyMode('cr'); setBuyInput('') }}>Invest by CR amount</button>
                   <button style={tabStyle(buyMode === 'shares')} onClick={() => { setBuyMode('shares'); setBuyInput('') }}>Invest by share count</button>
                 </div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                  {[100, 500, 1000, 5000].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => { setBuyMode('cr'); setBuyInput(amount) }}
+                      style={{
+                        flex: 1, padding: '6px', borderRadius: '6px', border: '0.5px solid #2a2a2a',
+                        background: buyInput === amount && buyMode === 'cr' ? 'rgba(74,222,128,0.1)' : 'transparent',
+                        color: buyInput === amount && buyMode === 'cr' ? '#4ade80' : '#555',
+                        fontSize: '12px', cursor: 'pointer', fontWeight: '500',
+                      }}
+                    >
+                      {amount >= 1000 ? `${amount / 1000}K` : amount} CR
+                    </button>
+                  ))}
+                </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
                   <input type="number" min="1" step={buyMode === 'cr' ? '1' : 'any'}
                     placeholder={buyMode === 'cr' ? 'Amount in CR...' : 'Number of shares...'}
@@ -520,6 +600,42 @@ const getPrice = (a) => {
                   <button onClick={buyShares} style={{ background: '#4ade80', color: '#000', fontSize: '14px', fontWeight: '500', padding: '12px 28px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>Buy</button>
                 </div>
                 {buyInput > 0 && <div style={{ color: '#555', fontSize: '12px' }}>≈ {getBuyShares().toFixed(2)} shares for {getBuyCost().toLocaleString()} CR</div>}
+                {buyInput > 0 && (
+                  <div style={{ marginTop: '10px', padding: '10px', background: '#0a0a0a', borderRadius: '8px', border: '0.5px solid #1a1a1a' }}>
+                    <div style={{ color: '#555', fontSize: '11px', marginBottom: '8px' }}>WHAT IF CALCULATOR</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span style={{ color: '#555', fontSize: '12px', whiteSpace: 'nowrap' }}>If popularity hits</span>
+                      <input
+                        type="number" min="1" max="100" placeholder="e.g. 90"
+                        value={calcPop}
+                        onChange={e => setCalcPop(e.target.value)}
+                        style={{ width: '70px', background: '#0f0f0f', border: '0.5px solid #2a2a2a', borderRadius: '6px', padding: '6px 10px', color: '#fff', fontSize: '12px', outline: 'none' }}
+                      />
+                      <span style={{ color: '#555', fontSize: '12px' }}>/100</span>
+                    </div>
+                    {calcPop > 0 && calcPop <= 100 && (() => {
+                      const targetPrice = Math.max(10, Math.round(Math.sqrt(artist.followers) / 2 + (parseInt(calcPop) * parseInt(calcPop)) / 8))
+                      const shares = getBuyShares()
+                      const projectedValue = Math.round(shares * targetPrice)
+                      const projectedPL = projectedValue - getBuyCost()
+                      const projectedPLPct = ((targetPrice - price) / price * 100).toFixed(1)
+                      return (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{projectedValue.toLocaleString()} CR</div>
+                            <div style={{ color: '#555', fontSize: '11px' }}>projected value</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ color: projectedPL >= 0 ? '#4ade80' : '#f87171', fontSize: '13px', fontWeight: '500' }}>
+                              {projectedPL >= 0 ? '+' : ''}{projectedPL.toLocaleString()} CR
+                            </div>
+                            <div style={{ color: '#555', fontSize: '11px' }}>{projectedPLPct >= 0 ? '+' : ''}{projectedPLPct}% vs now</div>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
                 {!profile?.is_admin && (
                   <div style={{ color: totalInvestors === 0 ? '#fbbf24' : '#555', fontSize: '12px', marginTop: '8px' }}>
                     {totalInvestors === 0
@@ -588,6 +704,51 @@ const getPrice = (a) => {
               ))}
             </div>
           )}
+
+          {/* Top Investors */}
+          {topInvestors.length > 0 && (
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginTop: '14px' }}>
+              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>TOP INVESTORS</div>
+              {topInvestors.map((inv, i) => (
+                <div key={inv.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topInvestors.length - 1 ? '0.5px solid #111' : 'none' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '10px', fontWeight: '500', flexShrink: 0 }}>
+                    {inv.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span style={{ color: '#ddd', fontSize: '13px', flex: 1 }}>{inv.username}</span>
+                  <span style={{ color: '#555', fontSize: '12px' }}>{inv.shares.toFixed(2)} shares</span>
+                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}><AnimatedNumber value={Math.round(inv.shares * price)} /> CR</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recent Activity */}
+          {recentArtistActivity.length > 0 && (
+            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px', marginTop: '14px' }}>
+              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>RECENT ACTIVITY</div>
+              {recentArtistActivity.map((tx, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < recentArtistActivity.length - 1 ? '0.5px solid #111' : 'none' }}>
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                    background: tx.type === 'buy' ? '#0f2a18' : '#1a0a0a',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: tx.type === 'buy' ? '#4ade80' : '#f87171', fontSize: '11px', fontWeight: '500'
+                  }}>
+                    {tx.type === 'buy' ? '↑' : '↓'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span
+                      style={{ color: '#fff', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
+                      onClick={() => router.push(`/profile/${tx.username}`)}
+                    >{tx.username}</span>
+                    <span style={{ color: '#555', fontSize: '12px' }}> {tx.type === 'buy' ? 'bought' : 'sold'} {tx.shares.toFixed(2)} shares</span>
+                  </div>
+                  <div style={{ color: '#444', fontSize: '10px', flexShrink: 0 }}>{timeAgo(tx.created_at)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
 
         {/* Right Panel */}
@@ -704,10 +865,28 @@ const getPrice = (a) => {
               <span style={{ color: '#555', fontSize: '13px' }}>Share price</span>
               <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}><AnimatedNumber value={price} /> CR</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: (allTimeHigh || allTimeLow) ? '0.5px solid #111' : 'none' }}>
               <span style={{ color: '#555', fontSize: '13px' }}>Total investors</span>
               <span style={{ color: '#fff', fontSize: '13px', fontWeight: '500' }}>{totalInvestors} user{totalInvestors !== 1 ? 's' : ''}</span>
             </div>
+            {allTimeHigh && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '0.5px solid #111' }}>
+                <span style={{ color: '#555', fontSize: '13px' }}>All-time high</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '500' }}>{allTimeHigh.price.toLocaleString()} CR</span>
+                  <div style={{ color: '#444', fontSize: '10px' }}>{new Date(allTimeHigh.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
+              </div>
+            )}
+            {allTimeLow && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+                <span style={{ color: '#555', fontSize: '13px' }}>All-time low</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ color: '#f87171', fontSize: '13px', fontWeight: '500' }}>{allTimeLow.price.toLocaleString()} CR</span>
+                  <div style={{ color: '#444', fontSize: '10px' }}>{new Date(allTimeLow.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bio */}
@@ -718,22 +897,6 @@ const getPrice = (a) => {
             </div>
           )}
 
-          {/* Top Investors */}
-          {topInvestors.length > 0 && (
-            <div className="card-hover" style={{ background: '#0f0f0f', border: '0.5px solid #1c1c1c', borderRadius: '12px', padding: '18px' }}>
-              <div style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px', marginBottom: '14px' }}>TOP INVESTORS</div>
-              {topInvestors.map((inv, i) => (
-                <div key={inv.userId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: i < topInvestors.length - 1 ? '0.5px solid #111' : 'none' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#0f2a18', border: '0.5px solid #1a4a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ade80', fontSize: '10px', fontWeight: '500', flexShrink: 0 }}>
-                    {inv.username.slice(0, 2).toUpperCase()}
-                  </div>
-                  <span style={{ color: '#ddd', fontSize: '13px', flex: 1 }}>{inv.username}</span>
-                  <span style={{ color: '#555', fontSize: '12px' }}>{inv.shares.toFixed(2)} shares</span>
-                  <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: '500' }}><AnimatedNumber value={Math.round(inv.shares * price)} /> CR</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

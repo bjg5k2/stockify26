@@ -44,7 +44,8 @@ export async function GET(request) {
         image: artist.images[0]?.url || null,
         followers: artist.followers.total,
         popularity: artist.popularity,
-        genres: artist.genres.slice(0, 2)
+        genres: artist.genres.slice(0, 2),
+        spotifyUrl: artist.external_urls?.spotify || null,
       }
     })
   } catch (err) {
